@@ -19,24 +19,6 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.zip.GZIPInputStream;
-
 import org.apache.maven.wagon.AbstractWagon;
 import org.apache.maven.wagon.ConnectionException;
 import org.apache.maven.wagon.OutputData;
@@ -63,58 +45,82 @@ import org.eclipse.jetty.http.HttpMethods;
 import org.eclipse.jetty.io.Buffer;
 import org.eclipse.jetty.io.BufferUtil;
 
+import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.zip.GZIPInputStream;
+
 /**
  * JettyClientHttpWagon
  */
-public class JettyClientHttpWagon 
+public class JettyClientHttpWagon
     extends AbstractWagon
     implements StreamingWagon, StreamObserver
 {
-    private static final Map <String, String> _protocolMap = new HashMap<String, String> ()
+    private static final Map<String, String> _protocolMap = new HashMap<String, String>()
     {
         {
-            put("http:",      "http:");
-            put("https:",     "https:");
-            put("dav:",       "http:" );
-            put("davs:",      "https:");
-            put("dav:http:",  "http:" );
-            put("dav:https:", "https:");
-            put("mttp:",      "http:" );
-            put("mttps:",     "https:");
+            put( "http:", "http:" );
+            put( "https:", "https:" );
+            put( "dav:", "http:" );
+            put( "davs:", "https:" );
+            put( "dav:http:", "http:" );
+            put( "dav:https:", "https:" );
+            put( "mttp:", "http:" );
+            put( "mttps:", "https:" );
         }
     };
 
     // StreamObserver implementation
     private byte[] _buffer;
+
     private long _length = -1L;
+
     private String _lastModified;
-               
+
     /** @plexus.configuration default="false" */
     private boolean useCache;
-    
+
     /** @plexus.configuration default=2 */
     protected int maxConnections;
-    
+
     /** @plexus.configuration default=0 */
     protected int connectionTimeout;
-    
-    private HttpClient   _httpClient;
-    private HttpFields   _httpHeaders;
-    private Resource     _resource;
+
+    private HttpClient _httpClient;
+
+    private HttpFields _httpHeaders;
+
+    private Resource _resource;
+
     private RequestState _requestState;
-    
+
     public JettyClientHttpWagon()
     {
         // needed for unit testing
-        _requestState = new RequestState(TransferEvent.REQUEST_GET);
+        _requestState = new RequestState( TransferEvent.REQUEST_GET );
     }
-    
-    public void setAuthInfo(AuthenticationInfo authInfo)
+
+    public void setAuthInfo( final AuthenticationInfo authInfo )
     {
         // needed for unit testing
         authenticationInfo = authInfo;
     }
 
+    @Override
     protected void openConnectionInternal()
         throws ConnectionException, AuthenticationException
     {
@@ -123,39 +129,44 @@ public class JettyClientHttpWagon
         try
         {
             _httpClient = new HttpClient();
-            
-            _httpClient.setConnectorType(HttpClient.CONNECTOR_SELECT_CHANNEL);
-            if (maxConnections > 0)
-            	_httpClient.setMaxConnectionsPerAddress(maxConnections);
-            if (connectionTimeout > 0) 
-            	_httpClient.setTimeout(connectionTimeout);
 
-            _httpClient.registerListener("org.apache.maven.wagon.providers.http.WagonListener");
-            _httpClient.registerListener("org.eclipse.jetty.client.webdav.WebdavListener");
-            
-            WagonListener.setHelper(new HttpConnectionHelper(this));
+            _httpClient.setConnectorType( HttpClient.CONNECTOR_SELECT_CHANNEL );
+            if ( maxConnections > 0 )
+            {
+                _httpClient.setMaxConnectionsPerAddress( maxConnections );
+            }
+            if ( connectionTimeout > 0 )
+            {
+                _httpClient.setTimeout( connectionTimeout );
+            }
+
+            _httpClient.registerListener( "org.apache.maven.wagon.providers.http.WagonListener" );
+            _httpClient.registerListener( "org.eclipse.jetty.client.webdav.WebdavListener" );
+
+            WagonListener.setHelper( new HttpConnectionHelper( this ) );
 
             setupClient();
-            
+
             _httpClient.start();
-         }
-        catch (Exception ex)
+        }
+        catch ( Exception ex )
         {
             _httpClient = null;
-            throw new ConnectionException(ex.getLocalizedMessage());
+            throw new ConnectionException( ex.getLocalizedMessage() );
         }
     }
 
+    @Override
     public void closeConnection()
         throws ConnectionException
     {
-        if (_httpClient != null)
+        if ( _httpClient != null )
         {
             try
             {
                 _httpClient.stop();
             }
-            catch (Exception e)
+            catch ( Exception e )
             {
                 e.printStackTrace();
             }
@@ -173,77 +184,87 @@ public class JettyClientHttpWagon
      *            the relative path
      * @return the complete URL
      */
-    private String buildUrl(String resourceName)
+    private String buildUrl( final String resourceName )
     {
         StringBuilder urlBuilder = new StringBuilder();
 
-        String baseUrl = getRepository().getUrl();              // get repositiory url
+        String baseUrl = getRepository().getUrl(); // get repositiory url
         int index = baseUrl.indexOf( '/' );
-        String protocol =  baseUrl.substring( 0, index);
-        String mappedProtocol =  _protocolMap.get(protocol);    // map server protocol
-        if (mappedProtocol != null)
-            urlBuilder.append(mappedProtocol);
-        else
-            urlBuilder.append(protocol);
-        
-        urlBuilder.append(baseUrl.substring(index));
-        if (baseUrl.endsWith("/"))
-            urlBuilder.deleteCharAt(urlBuilder.length()-1);     // avoid double slash
-       
-        String resourceUri = resourceName;
-        resourceUri.replace(' ','+');                           // encode whitespace
-        String[] parts = StringUtils.split(resourceUri,"/");
-        for (int i = 0; i < parts.length; i++)
+
+        String protocol = baseUrl.substring( 0, index );
+        String mappedProtocol = _protocolMap.get( protocol ); // map server protocol
+        if ( mappedProtocol != null )
         {
-            urlBuilder.append('/').append(URLEncoder.encode(parts[i])); // encode URI
+            urlBuilder.append( mappedProtocol );
         }
-        if (resourceName.endsWith("/"))
-            urlBuilder.append('/');                             // directory URI
+        else
+        {
+            urlBuilder.append( protocol );
+        }
+
+        urlBuilder.append( baseUrl.substring( index ) );
+        if ( baseUrl.endsWith( "/" ) )
+        {
+            urlBuilder.deleteCharAt( urlBuilder.length() - 1 ); // avoid double slash
+        }
+
+        String resourceUri = resourceName;
+        resourceUri.replace( ' ', '+' ); // encode whitespace
+
+        String[] parts = StringUtils.split( resourceUri, "/" );
+        for ( int i = 0; i < parts.length; i++ )
+        {
+            urlBuilder.append( '/' ).append( URLEncoder.encode( parts[i] ) ); // encode URI
+        }
+
+        if ( resourceName.endsWith( "/" ) )
+        {
+            urlBuilder.append( '/' ); // directory URI
+        }
 
         return urlBuilder.toString();
     }
 
-    public void get( String resourceName, File destination )
+    public void get( final String resourceName, final File destination )
         throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException
     {
         getIfNewer( resourceName, destination, 0 );
     }
 
-    public boolean getIfNewer( String resourceName, File destination, long timestamp )
+    public boolean getIfNewer( final String resourceName, final File destination, final long timestamp )
         throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException
     {
         Resource resource = new Resource( resourceName );
-        
-        fireGetInitiated( resource, destination );
-        
-        return getIfNewer(resource, null, destination, timestamp);
-    }
-        
 
-    public void getToStream( String resourceName, OutputStream stream )
+        fireGetInitiated( resource, destination );
+
+        return getIfNewer( resource, null, destination, timestamp );
+    }
+
+    public void getToStream( final String resourceName, final OutputStream stream )
         throws ResourceDoesNotExistException, TransferFailedException, AuthorizationException
     {
         getIfNewerToStream( resourceName, stream, 0 );
     }
-    
-    public boolean getIfNewerToStream( String resourceName, OutputStream stream, long timestamp )
+
+    public boolean getIfNewerToStream( final String resourceName, final OutputStream stream, final long timestamp )
         throws ResourceDoesNotExistException, TransferFailedException, AuthorizationException
     {
         Resource resource = new Resource( resourceName );
-    
-        fireGetInitiated( resource, null );
-        
-        return getIfNewer(resource, stream, null, timestamp);
-    }
-    
-    private boolean getIfNewer( Resource resource, OutputStream stream, File destination, long timestamp )
-        throws ResourceDoesNotExistException, TransferFailedException, AuthorizationException
-    {       
-        _resource = resource;
-        String resourceUrl = buildUrl(_resource.getName());
 
-        _requestState = new RequestState(TransferEvent.REQUEST_GET);
-        _requestState.addRequestHeader("Accept-Encoding", "gzip");
+        fireGetInitiated( resource, null );
+
+        return getIfNewer( resource, stream, null, timestamp );
+    }
+
+    private boolean getIfNewer( final Resource resource, final OutputStream stream, final File destination, final long timestamp )
+        throws ResourceDoesNotExistException, TransferFailedException, AuthorizationException
+    {
+        _resource = resource;
+        String resourceUrl = buildUrl( _resource.getName() );
+
+        _requestState = new RequestState( TransferEvent.REQUEST_GET );
+        _requestState.addRequestHeader( "Accept-Encoding", "gzip" );
         if ( !useCache )
         {
             _requestState.addRequestHeader( "Pragma", "no-cache" );
@@ -254,14 +275,14 @@ public class JettyClientHttpWagon
         try
         {
             WagonExchange httpExchange = new WagonExchange();
-            httpExchange.setURL(resourceUrl);
-            httpExchange.setMethod(HttpMethods.GET);            
+            httpExchange.setURL( resourceUrl );
+            httpExchange.setMethod( HttpMethods.GET );
 
-            _httpClient.send(httpExchange);
+            _httpClient.send( httpExchange );
             int status = httpExchange.waitForDone();
 
             int responseStatus = httpExchange.getResponseStatus();
-            switch (responseStatus)
+            switch ( responseStatus )
             {
                 case ServerResponse.SC_OK:
                 case ServerResponse.SC_NOT_MODIFIED:
@@ -269,50 +290,50 @@ public class JettyClientHttpWagon
 
                 case ServerResponse.SC_FORBIDDEN:
                     fireSessionConnectionRefused();
-                    throw new AuthorizationException("Transfer failed: [" + responseStatus + "] " + resourceUrl);
+                    throw new AuthorizationException( "Transfer failed: [" + responseStatus + "] " + resourceUrl );
 
                 case ServerResponse.SC_UNAUTHORIZED:
                     fireSessionConnectionRefused();
-                    throw new AuthorizationException("Transfer failed: Not authorized");
+                    throw new AuthorizationException( "Transfer failed: Not authorized" );
 
                 case ServerResponse.SC_PROXY_AUTHENTICATION_REQUIRED:
                     fireSessionConnectionRefused();
-                    throw new AuthorizationException("Transfer failed: Not authorized by proxy");
+                    throw new AuthorizationException( "Transfer failed: Not authorized by proxy" );
 
                 case ServerResponse.SC_NOT_FOUND:
-                    throw new ResourceDoesNotExistException("Transfer failed: " + resourceUrl + " does not exist");
+                    throw new ResourceDoesNotExistException( "Transfer failed: " + resourceUrl + " does not exist" );
 
                 default:
                 {
-                    cleanupGetTransfer(_resource);
-                    TransferFailedException ex = new TransferFailedException("Transfer failed: [" + responseStatus + "] " + resourceUrl);
-                    fireTransferError(_resource,ex,TransferEvent.REQUEST_GET);
+                    cleanupGetTransfer( _resource );
+                    TransferFailedException ex =
+                        new TransferFailedException( "Transfer failed: [" + responseStatus + "] " + resourceUrl );
+                    fireTransferError( _resource, ex, TransferEvent.REQUEST_GET );
                     throw ex;
                 }
             }
 
             boolean retValue = false;
 
-            _resource.setLastModified(httpExchange.getLastModified());
-            _resource.setContentLength(httpExchange.getContentLength());
-
+            _resource.setLastModified( httpExchange.getLastModified() );
+            _resource.setContentLength( httpExchange.getContentLength() );
 
             // always get if timestamp is 0 (ie, target doesn't exist), otherwise only if older than the remote file
             if ( timestamp == 0 || timestamp < _resource.getLastModified() )
             {
                 retValue = true;
 
-                InputStream input = getResponseContentSource(httpExchange);
-                
-                if (stream != null)
+                InputStream input = getResponseContentSource( httpExchange );
+
+                if ( stream != null )
                 {
-                    fireGetStarted( _resource, destination );               
-                    getTransfer( _resource, stream, input);
+                    fireGetStarted( _resource, destination );
+                    getTransfer( _resource, stream, input );
                     fireGetCompleted( _resource, destination );
                 }
-                else if (destination != null)
+                else if ( destination != null )
                 {
-                    getTransfer( _resource, destination, input);
+                    getTransfer( _resource, destination, input );
                 }
                 else
                 {
@@ -320,70 +341,70 @@ public class JettyClientHttpWagon
                 }
             }
 
+            return retValue;
+        }
+        catch ( InterruptedException ex )
+        {
+            fireTransferError( _resource, ex, TransferEvent.REQUEST_GET );
 
-           return retValue;
+            throw new TransferFailedException( "Transfer interrupted: " + ex.getMessage(), ex );
         }
-        catch (InterruptedException ex)
+        catch ( FileNotFoundException ex )
         {
-            fireTransferError(_resource,ex,TransferEvent.REQUEST_GET);
-         
-            throw new TransferFailedException("Transfer interrupted: " + ex.getMessage(),ex);
-       }
-        catch (FileNotFoundException ex)
-        {
-           fireGetCompleted( _resource, null );
-           throw new ResourceDoesNotExistException("Transfer error: Resource not found in repository",ex);
+            fireGetCompleted( _resource, null );
+            throw new ResourceDoesNotExistException( "Transfer error: Resource not found in repository", ex );
         }
-        catch (IOException ex)
+        catch ( IOException ex )
         {
-            fireTransferError(_resource,ex,TransferEvent.REQUEST_GET);
-  
-            throw new TransferFailedException("Transfer error: " + ex.getMessage(),ex);
+            fireTransferError( _resource, ex, TransferEvent.REQUEST_GET );
+
+            throw new TransferFailedException( "Transfer error: " + ex.getMessage(), ex );
         }
     }
-    
-    public void put(File source, String resourceName) throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException
+
+    public void put( final File source, final String resourceName )
+        throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException
     {
-        Resource resource = new Resource(resourceName);
+        Resource resource = new Resource( resourceName );
 
-        firePutInitiated(resource, source);
+        firePutInitiated( resource, source );
 
-        resource.setContentLength(source.length());
+        resource.setContentLength( source.length() );
 
-        resource.setLastModified(source.lastModified());
+        resource.setLastModified( source.lastModified() );
 
-        put(null, source ,resource);
+        put( null, source, resource );
     }
 
-    public void putFromStream( InputStream stream, String destination )
+    public void putFromStream( final InputStream stream, final String destination )
         throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException
     {
         Resource resource = new Resource( destination );
-    
+
         firePutInitiated( resource, null );
-    
-        put(stream, null, resource);
+
+        put( stream, null, resource );
     }
 
-    public void putFromStream(final InputStream stream, String destination, long contentLength, long lastModified) throws TransferFailedException,
-            ResourceDoesNotExistException, AuthorizationException
+    public void putFromStream( final InputStream stream, final String destination, final long contentLength, final long lastModified )
+        throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException
     {
-        Resource resource = new Resource(destination);
+        Resource resource = new Resource( destination );
 
-        firePutInitiated(resource, null);
+        firePutInitiated( resource, null );
 
-        resource.setContentLength(contentLength);
+        resource.setContentLength( contentLength );
 
-        resource.setLastModified(lastModified);
+        resource.setLastModified( lastModified );
 
-        put(stream, null, resource);
+        put( stream, null, resource );
     }
 
-    private void put(final InputStream stream, File source, Resource resource) throws TransferFailedException, AuthorizationException,
-            ResourceDoesNotExistException
+    private void put( final InputStream stream, final File source, final Resource resource )
+        throws TransferFailedException, AuthorizationException, ResourceDoesNotExistException
     {
         _resource = resource;
-        _requestState = new RequestState(TransferEvent.REQUEST_PUT);
+        _requestState = new RequestState( TransferEvent.REQUEST_PUT );
         if ( !useCache )
         {
             _requestState.addRequestHeader( "Pragma", "no-cache" );
@@ -391,23 +412,23 @@ public class JettyClientHttpWagon
         }
         // *TODO* add hard-coded headers for PUT request
 
-        String resourceUrl = buildUrl(_resource.getName());
+        String resourceUrl = buildUrl( _resource.getName() );
 
-        firePutStarted(_resource,source);
+        firePutStarted( _resource, source );
 
         try
         {
             WagonExchange httpExchange = new WagonExchange();
-            httpExchange.setURL(resourceUrl);
-            httpExchange.setMethod(HttpMethods.PUT);
-            setRequestContentSource(httpExchange, stream, source);
+            httpExchange.setURL( resourceUrl );
+            httpExchange.setMethod( HttpMethods.PUT );
+            setRequestContentSource( httpExchange, stream, source );
 
-            _httpClient.send(httpExchange);
+            _httpClient.send( httpExchange );
             int status = httpExchange.waitForDone();
 
             int responseStatus = httpExchange.getResponseStatus();
 
-            switch (responseStatus)
+            switch ( responseStatus )
             {
                 // Success Codes
                 case ServerResponse.SC_OK: // 200
@@ -418,107 +439,114 @@ public class JettyClientHttpWagon
 
                 case ServerResponse.SC_FORBIDDEN:
                     fireSessionConnectionRefused();
-                    throw new AuthorizationException("Transfer failed: [" + responseStatus + "] " + resourceUrl);
+                    throw new AuthorizationException( "Transfer failed: [" + responseStatus + "] " + resourceUrl );
 
                 case ServerResponse.SC_UNAUTHORIZED:
                     fireSessionConnectionRefused();
-                    throw new AuthorizationException("Transfer failed: Not authorized");
+                    throw new AuthorizationException( "Transfer failed: Not authorized" );
 
                 case ServerResponse.SC_PROXY_AUTHENTICATION_REQUIRED:
                     fireSessionConnectionRefused();
-                    throw new AuthorizationException("Transfer failed: Not authorized by proxy");
+                    throw new AuthorizationException( "Transfer failed: Not authorized by proxy" );
 
                 case ServerResponse.SC_NOT_FOUND:
-                    throw new ResourceDoesNotExistException("Transfer failed: " + resourceUrl + " does not exist");
+                    throw new ResourceDoesNotExistException( "Transfer failed: " + resourceUrl + " does not exist" );
 
                 default:
                 {
-                    TransferFailedException ex = new TransferFailedException("Transfer failed: [" + responseStatus + "] " + resourceUrl);
-                    fireTransferError(_resource,ex,TransferEvent.REQUEST_PUT);
+                    TransferFailedException ex =
+                        new TransferFailedException( "Transfer failed: [" + responseStatus + "] " + resourceUrl );
+                    fireTransferError( _resource, ex, TransferEvent.REQUEST_PUT );
                     throw ex;
                 }
             }
 
-            fireTransferDebug(resourceUrl + " [" + responseStatus + "]");
+            fireTransferDebug( resourceUrl + " [" + responseStatus + "]" );
 
-            firePutCompleted(_resource,source);
+            firePutCompleted( _resource, source );
         }
-        catch (InterruptedException ex)
+        catch ( InterruptedException ex )
         {
-            throw new TransferFailedException("Transfer interrupted: " + ex.getMessage(),ex);
+            throw new TransferFailedException( "Transfer interrupted: " + ex.getMessage(), ex );
         }
-        catch (IOException ex)
+        catch ( IOException ex )
         {
-            fireTransferError(_resource,ex,TransferEvent.REQUEST_PUT);
+            fireTransferError( _resource, ex, TransferEvent.REQUEST_PUT );
 
-            throw new TransferFailedException("Transfer error: " + ex.getMessage(),ex);
+            throw new TransferFailedException( "Transfer error: " + ex.getMessage(), ex );
         }
     }
 
-    public boolean resourceExists(String resourceName)
+    @Override
+    public boolean resourceExists( final String resourceName )
         throws TransferFailedException, AuthorizationException
     {
-        Resource resource = new Resource(resourceName);
-        
+        Resource resource = new Resource( resourceName );
+
         try
         {
-            return getIfNewer(resource,null,null,0);
+            return getIfNewer( resource, null, null, 0 );
         }
-        catch (ResourceDoesNotExistException ex)
+        catch ( ResourceDoesNotExistException ex )
         {
             return false;
         }
     }
 
-    public List getFileList( String destinationDirectory )
-        throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException 
+    @Override
+    public List getFileList( final String destinationDirectory )
+        throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException
     {
         throw new UnsupportedOperationException();
         /*
-        String resourceName = destinationDirectory;
-        if (!resourceName.endsWith("/"))
-            resourceName += "/";
-        
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        
-        getIfNewerToStream(resourceName,stream,0);
-        return HtmlFileListParser.parseFileList( buildUrl(resourceName), new ByteArrayInputStream(stream.toByteArray()) );
-        */
+         * String resourceName = destinationDirectory; if (!resourceName.endsWith("/")) resourceName += "/";
+         * 
+         * ByteArrayOutputStream stream = new ByteArrayOutputStream();
+         * 
+         * getIfNewerToStream(resourceName,stream,0); return HtmlFileListParser.parseFileList( buildUrl(resourceName),
+         * new ByteArrayInputStream(stream.toByteArray()) );
+         */
     }
-        
-    protected void setRequestContentSource(WagonExchange exchange, InputStream srcStream, File srcFile) throws IOException
+
+    protected void setRequestContentSource( final WagonExchange exchange, final InputStream srcStream, final File srcFile )
+        throws IOException
     {
         InputStream source = null;
-        if (srcStream != null)
-            source = srcStream;
-        else if (srcFile != null)
-            source = new FileInputStream(srcFile);
-        
-        if (source != null && !source.markSupported())
+        if ( srcStream != null )
         {
-            BufferedInputStream bstream = new BufferedInputStream(source);
-            bstream.mark(srcFile==null?Integer.MAX_VALUE:(int)srcFile.length());
+            source = srcStream;
+        }
+        else if ( srcFile != null )
+        {
+            source = new FileInputStream( srcFile );
+        }
+
+        if ( source != null && !source.markSupported() )
+        {
+            BufferedInputStream bstream = new BufferedInputStream( source );
+            bstream.mark( srcFile == null ? Integer.MAX_VALUE : (int) srcFile.length() );
             source = bstream;
         }
-        
-        if (source != null)
+
+        if ( source != null )
         {
-            ObservableInputStream observe = new ObservableInputStream(source);
-            observe.addObserver(this);
+            ObservableInputStream observe = new ObservableInputStream( source );
+            observe.addObserver( this );
             source = observe;
         }
 
-        exchange.setRequestContentSource(source);
+        exchange.setRequestContentSource( source );
     }
-    
-    protected InputStream getResponseContentSource(WagonExchange exchange)
+
+    protected InputStream getResponseContentSource( final WagonExchange exchange )
         throws IOException
     {
         InputStream source = exchange.getResponseContentSource();
 
-        if (source != null) {
+        if ( source != null )
+        {
             String contentEncoding = exchange.getContentEncoding();
-            if ( contentEncoding != null && "gzip".equalsIgnoreCase(contentEncoding) )
+            if ( contentEncoding != null && "gzip".equalsIgnoreCase( contentEncoding ) )
             {
                 source = new GZIPInputStream( source );
             }
@@ -527,103 +555,116 @@ public class JettyClientHttpWagon
         return source;
     }
 
-    void bytesReady(byte[] buf, int len)
+    void bytesReady( final byte[] buf, final int len )
     {
-        fireTransferProgress(_requestState._transferEvent,buf,len);
+        fireTransferProgress( _requestState._transferEvent, buf, len );
     }
 
-    protected void setHttpHeaders(Properties properties)
+    protected void setHttpHeaders( final Properties properties )
     {
         _httpHeaders = new HttpFields();
-        for (Enumeration names = properties.propertyNames(); names.hasMoreElements();)
+        for ( Enumeration names = properties.propertyNames(); names.hasMoreElements(); )
         {
-            String name = (String)names.nextElement();
-            _httpHeaders.add(name,properties.getProperty(name));
+            String name = (String) names.nextElement();
+            _httpHeaders.add( name, properties.getProperty( name ) );
         }
-     }
-    
+    }
+
     protected void setupClient()
         throws ConnectionException, IOException
     {
-        ProxyInfo proxyInfo = getProxyInfo("http", getRepository().getHost());
-        if (proxyInfo != null && proxyInfo.getHost() != null)
+        ProxyInfo proxyInfo = getProxyInfo( "http", getRepository().getHost() );
+        if ( proxyInfo != null && proxyInfo.getHost() != null )
         {
             String proxyType = proxyInfo.getType();
-            if( !proxyType.equalsIgnoreCase(ProxyInfo.PROXY_HTTP.toLowerCase()  ) )
-                 throw new ConnectionException( "Connection failed: " + proxyType + " is not supported" );
-            
-            _httpClient.setProxy(new Address(proxyInfo.getHost(),proxyInfo.getPort()));
-                       
-            if(proxyInfo.getUserName() != null)
-                _httpClient.setProxyAuthentication(new ProxyAuthorization(proxyInfo.getUserName(),proxyInfo.getPassword()));
+            if ( !proxyType.equalsIgnoreCase( ProxyInfo.PROXY_HTTP.toLowerCase() ) )
+            {
+                throw new ConnectionException( "Connection failed: " + proxyType + " is not supported" );
+            }
+
+            _httpClient.setProxy( new Address( proxyInfo.getHost(), proxyInfo.getPort() ) );
+
+            if ( proxyInfo.getUserName() != null )
+            {
+                _httpClient.setProxyAuthentication( new ProxyAuthorization( proxyInfo.getUserName(),
+                                                                            proxyInfo.getPassword() ) );
+            }
         }
 
         AuthenticationInfo authInfo = getAuthenticationInfo();
-        if (authInfo != null && authInfo.getUserName() != null)
+        if ( authInfo != null && authInfo.getUserName() != null )
         {
-            _httpClient.setRealmResolver(
-                new RealmResolver()
+            _httpClient.setRealmResolver( new RealmResolver()
+            {
+                public Realm getRealm( final String realmName, final HttpDestination destination, final String path )
+                    throws IOException
                 {
-                    public Realm getRealm(String realmName, HttpDestination destination, String path) throws IOException
+                    return new Realm()
                     {
-                         return new Realm() {
-                             public String getCredentials()
-                             {
-                                 return getAuthenticationInfo().getPassword();
-                             }                                 
-                             public String getPrincipal()
-                             {
-                                 return getAuthenticationInfo().getUserName();
-                             }
-                            public String getId()
-                            {
-                                return getRepository().getHost();
-                            }
-                         };
-                    }
-                });
+                        public String getCredentials()
+                        {
+                            return getAuthenticationInfo().getPassword();
+                        }
+
+                        public String getPrincipal()
+                        {
+                            return getAuthenticationInfo().getUserName();
+                        }
+
+                        public String getId()
+                        {
+                            return getRepository().getHost();
+                        }
+                    };
+                }
+            } );
         }
     }
 
-    protected void mkdirs(String dirname) throws IOException
+    protected void mkdirs( final String dirname )
+        throws IOException
     {
     }
 
-    public void fillOutputData(OutputData arg0) throws TransferFailedException
+    public void fillOutputData( final OutputData arg0 )
+        throws TransferFailedException
     {
-        throw new IllegalStateException("Should not be using the streaming wagon for HTTP PUT");
+        throw new IllegalStateException( "Should not be using the streaming wagon for HTTP PUT" );
     }
-    
+
     public boolean getUseCache()
     {
         return useCache;
     }
-    
+
     public HttpFields getHttpHeaders()
     {
         return _httpHeaders;
     }
-    
-    public ProxyInfo getProxyInfo(String type, String host)
-    { 
-        return super.getProxyInfo(type,host);
-    }
-    
-    public void byteReady(int b)
-        throws StreamObserverException
+
+    @Override
+    public ProxyInfo getProxyInfo( final String type, final String host )
     {
-        bytesReady(new byte[]{ (byte)b }, 1);
+        return super.getProxyInfo( type, host );
     }
 
-    public void bytesReady(byte[] b, int off, int len)
+    public void byteReady( final int b )
         throws StreamObserverException
     {
-        if (_buffer == null || len > _buffer.length)
+        bytesReady( new byte[] { (byte) b }, 1 );
+    }
+
+    public void bytesReady( final byte[] b, final int off, final int len )
+        throws StreamObserverException
+    {
+        if ( _buffer == null || len > _buffer.length )
+        {
             _buffer = new byte[len];
+        }
 
-        System.arraycopy(b, off, _buffer, 0, len);
+        System.arraycopy( b, off, _buffer, 0, len );
 
-        bytesReady(_buffer, len);
+        bytesReady( _buffer, len );
     }
 
     public long getLength()
@@ -631,12 +672,12 @@ public class JettyClientHttpWagon
         return _length;
     }
 
-    public void setLength(long length)
+    public void setLength( final long length )
     {
         _length = length;
     }
 
-    public void setLastModified(String time)
+    public void setLastModified( final String time )
     {
         _lastModified = time;
     }
@@ -650,122 +691,140 @@ public class JettyClientHttpWagon
         extends ContentExchange
     {
         protected byte[] _responseContentBytes;
+
         protected int _responseStatus;
+
         protected int _contentLength;
+
         protected String _contentEncoding;
+
         protected long _lastModified;
-        
+
         public WagonExchange()
         {
-            super(false);
+            super( false );
 
-            addRequestHeaders(_requestState._requestHeaders);
-            addRequestHeaders(_httpHeaders);
-       }
-        
-        private void addRequestHeaders(HttpFields headers)
+            addRequestHeaders( _requestState._requestHeaders );
+            addRequestHeaders( _httpHeaders );
+        }
+
+        private void addRequestHeaders( final HttpFields headers )
         {
-            if (headers != null)
+            if ( headers != null )
             {
-                for (Enumeration names = headers.getFieldNames(); names.hasMoreElements() ;) {
-                    String name = (String)names.nextElement();
-                    addRequestHeader(name, headers.getStringField(name));
+                for ( Enumeration names = headers.getFieldNames(); names.hasMoreElements(); )
+                {
+                    String name = (String) names.nextElement();
+                    addRequestHeader( name, headers.getStringField( name ) );
                 }
             }
         }
-        
+
         public int getContentLength()
         {
             return _contentLength;
         }
-        
-        public void setContentLength(int length)
+
+        public void setContentLength( final int length )
         {
             _contentLength = length;
         }
-            
+
         public String getContentEncoding()
         {
             return _contentEncoding;
         }
-        
-        public void setContentEncoding(String encoding)
+
+        public void setContentEncoding( final String encoding )
         {
             _contentEncoding = encoding;
         }
-        
+
         public long getLastModified()
         {
             return _lastModified;
         }
 
-        public void setLastModified(long time)
+        public void setLastModified( final long time )
         {
             _lastModified = time;
         }
-        
-        public void setResponseStatus(int status)
+
+        public void setResponseStatus( final int status )
         {
-            _responseStatus = status; 
+            _responseStatus = status;
         }
-        
+
+        @Override
         public int getResponseStatus()
         {
-            if (_responseStatus != 0)
+            if ( _responseStatus != 0 )
+            {
                 return _responseStatus;
+            }
             else
+            {
                 return super.getResponseStatus();
+            }
         }
-       
-        public void setResponseContentBytes(byte[] bytes)
+
+        public void setResponseContentBytes( final byte[] bytes )
         {
             _responseContentBytes = bytes;
         }
-        
-        public InputStream getResponseContentSource() throws UnsupportedEncodingException
+
+        public InputStream getResponseContentSource()
+            throws UnsupportedEncodingException
         {
-            return new ByteArrayInputStream(_responseContentBytes != null ? _responseContentBytes:getResponseContentBytes());
+            return new ByteArrayInputStream( _responseContentBytes != null ? _responseContentBytes
+                            : getResponseContentBytes() );
         }
-        
-        public void onResponseHeader(Buffer name, Buffer value) throws IOException
+
+        @Override
+        public void onResponseHeader( final Buffer name, final Buffer value )
+            throws IOException
         {
-            super.onResponseHeader(name,value);
-            int header = HttpHeaders.CACHE.getOrdinal(name);
-            switch (header)
+            super.onResponseHeader( name, value );
+            int header = HttpHeaders.CACHE.getOrdinal( name );
+            switch ( header )
             {
                 case HttpHeaders.CONTENT_LENGTH_ORDINAL:
-                    _contentLength = BufferUtil.toInt(value);
+                    _contentLength = BufferUtil.toInt( value );
                     break;
                 case HttpHeaders.CONTENT_ENCODING_ORDINAL:
-                    _contentEncoding = BufferUtil.to8859_1_String(value);
+                    _contentEncoding = BufferUtil.to8859_1_String( value );
                     break;
                 case HttpHeaders.LAST_MODIFIED_ORDINAL:
-                    String lastModifiedStr = BufferUtil.to8859_1_String(value);
-                    _lastModified = (lastModifiedStr == null || lastModifiedStr.length() == 0?0:Date.parse(lastModifiedStr));
+                    String lastModifiedStr = BufferUtil.to8859_1_String( value );
+                    _lastModified =
+                        ( lastModifiedStr == null || lastModifiedStr.length() == 0 ? 0 : Date.parse( lastModifiedStr ) );
                     break;
             }
         }
     }
-    
+
     class RequestState
     {
         public int _eventType;
+
         public TransferEvent _transferEvent;
+
         public HttpFields _requestHeaders;
-                
-        public RequestState(int eventType)
+
+        public RequestState( final int eventType )
         {
             _eventType = eventType;
-            
-            _transferEvent = new TransferEvent(JettyClientHttpWagon.this,_resource,TransferEvent.TRANSFER_PROGRESS,_eventType);
-            _transferEvent.setTimestamp(System.currentTimeMillis());
-            
+
+            _transferEvent =
+                new TransferEvent( JettyClientHttpWagon.this, _resource, TransferEvent.TRANSFER_PROGRESS, _eventType );
+            _transferEvent.setTimestamp( System.currentTimeMillis() );
+
             _requestHeaders = new HttpFields();
         }
-        
-        public void addRequestHeader(String name, String value)
+
+        public void addRequestHeader( final String name, final String value )
         {
-            _requestHeaders.add(name,value);
+            _requestHeaders.add( name, value );
         }
     }
 }

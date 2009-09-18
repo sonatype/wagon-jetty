@@ -19,37 +19,32 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.Authenticator;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.PasswordAuthentication;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.Enumeration;
-import java.util.zip.GZIPInputStream;
-
 import org.apache.maven.wagon.ConnectionException;
-import org.apache.maven.wagon.ResourceDoesNotExistException;
 import org.apache.maven.wagon.TransferFailedException;
 import org.apache.maven.wagon.authentication.AuthenticationException;
 import org.apache.maven.wagon.authentication.AuthenticationInfo;
 import org.apache.maven.wagon.authorization.AuthorizationException;
 import org.apache.maven.wagon.providers.http.JettyClientHttpWagon.WagonExchange;
 import org.apache.maven.wagon.proxy.ProxyInfo;
-import org.apache.maven.wagon.resource.Resource;
 import org.codehaus.plexus.util.IOUtil;
 import org.eclipse.jetty.http.HttpFields;
-import org.eclipse.jetty.io.ByteArrayBuffer;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.Authenticator;
+import java.net.HttpURLConnection;
+import java.net.PasswordAuthentication;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.Enumeration;
+import java.util.zip.GZIPInputStream;
 
 public class HttpConnectionHelper
 {
     private JettyClientHttpWagon _wagon;
-    
+
     private HttpURLConnection urlConnection;
 
     private String previousProxyExclusions;
@@ -57,47 +52,50 @@ public class HttpConnectionHelper
     private String previousHttpProxyHost;
 
     private String previousHttpProxyPort;
-    
-    HttpConnectionHelper( JettyClientHttpWagon wagon)
+
+    HttpConnectionHelper( JettyClientHttpWagon wagon )
     {
         _wagon = wagon;
     }
-    
-    public void send(WagonExchange exchange)
-    {
-        try {
-            StringBuilder urlBuilder = new StringBuilder();
-            urlBuilder.append(exchange.getScheme().toString());
-            urlBuilder.append("://");
-            urlBuilder.append(exchange.getAddress().toString());
-            urlBuilder.append(exchange.getURI().replace("//", "/"));
-            URL url = new URL(urlBuilder.toString());
- 
-            String method = exchange.getMethod();
- 
-            setupConnection(url);
 
-            if (method.equalsIgnoreCase("GET"))
+    public void send( WagonExchange exchange )
+    {
+        try
+        {
+            StringBuilder urlBuilder = new StringBuilder();
+            urlBuilder.append( exchange.getScheme().toString() );
+            urlBuilder.append( "://" );
+            urlBuilder.append( exchange.getAddress().toString() );
+            urlBuilder.append( exchange.getURI().replace( "//", "/" ) );
+            URL url = new URL( urlBuilder.toString() );
+
+            String method = exchange.getMethod();
+
+            setupConnection( url );
+
+            if ( method.equalsIgnoreCase( "GET" ) )
             {
-                doGet(url, exchange, true);
-            } 
-            else if(method.equalsIgnoreCase("HEAD"))
-            {
-                doGet(url, exchange, false);
-            } 
-            else if(method.equalsIgnoreCase("PUT"))
-            {
-                doPut(url, exchange);
+                doGet( url, exchange, true );
             }
-            
+            else if ( method.equalsIgnoreCase( "HEAD" ) )
+            {
+                doGet( url, exchange, false );
+            }
+            else if ( method.equalsIgnoreCase( "PUT" ) )
+            {
+                doPut( url, exchange );
+            }
+
             closeConnection();
-         }
-        catch ( Exception e ) { }
-   }
-    
-    public void doGet(URL url, WagonExchange exchange, boolean doGet)
+        }
+        catch ( Exception e )
+        {
+        }
+    }
+
+    public void doGet( URL url, WagonExchange exchange, boolean doGet )
         throws Exception
-    {        
+    {
         urlConnection = (HttpURLConnection) url.openConnection();
         urlConnection.setRequestProperty( "Accept-Encoding", "gzip" );
         if ( !_wagon.getUseCache() )
@@ -107,7 +105,7 @@ public class HttpConnectionHelper
 
         addHeaders( urlConnection );
 
-        if (doGet)
+        if ( doGet )
         {
             urlConnection.setRequestMethod( "GET" );
         }
@@ -115,15 +113,14 @@ public class HttpConnectionHelper
         {
             urlConnection.setRequestMethod( "HEAD" );
         }
-        
+
         int responseCode = urlConnection.getResponseCode();
-        if ( responseCode == HttpURLConnection.HTTP_FORBIDDEN
-            || responseCode == HttpURLConnection.HTTP_UNAUTHORIZED )
+        if ( responseCode == HttpURLConnection.HTTP_FORBIDDEN || responseCode == HttpURLConnection.HTTP_UNAUTHORIZED )
         {
             throw new AuthorizationException( "Access denied to: " + url );
         }
-        
-        if (doGet)
+
+        if ( doGet )
         {
             InputStream is = urlConnection.getInputStream();
             String contentEncoding = urlConnection.getHeaderField( "Content-Encoding" );
@@ -132,18 +129,18 @@ public class HttpConnectionHelper
             {
                 is = new GZIPInputStream( is );
             }
-            
+
             ByteArrayOutputStream content = new ByteArrayOutputStream();
-            IOUtil.copy(is, content);
-            exchange.setResponseContentBytes(content.toByteArray());
+            IOUtil.copy( is, content );
+            exchange.setResponseContentBytes( content.toByteArray() );
         }
-        
+
         exchange.setLastModified( urlConnection.getLastModified() );
         exchange.setContentLength( urlConnection.getContentLength() );
-        exchange.setResponseStatus(responseCode);
+        exchange.setResponseStatus( responseCode );
     }
 
-    public void doPut(URL url, WagonExchange exchange)
+    public void doPut( URL url, WagonExchange exchange )
         throws TransferFailedException
     {
         try
@@ -154,14 +151,14 @@ public class HttpConnectionHelper
 
             urlConnection.setRequestMethod( "PUT" );
             urlConnection.setDoOutput( true );
-            
+
             InputStream source = exchange.getRequestContentSource();
             OutputStream out = urlConnection.getOutputStream();
             source.reset();
-            IOUtil.copy(source, out);
+            IOUtil.copy( source, out );
             out.close();
-            
-            exchange.setResponseStatus(urlConnection.getResponseCode());
+
+            exchange.setResponseStatus( urlConnection.getResponseCode() );
         }
         catch ( IOException e )
         {
@@ -174,12 +171,13 @@ public class HttpConnectionHelper
         HttpFields httpHeaders = _wagon.getHttpHeaders();
         if ( httpHeaders != null )
         {
-            for (Enumeration names = httpHeaders.getFieldNames(); names.hasMoreElements() ;) {
-                String name = (String)names.nextElement();
-                urlConnection.setRequestProperty( name, httpHeaders.getStringField(name) );
+            for ( Enumeration names = httpHeaders.getFieldNames(); names.hasMoreElements(); )
+            {
+                String name = (String) names.nextElement();
+                urlConnection.setRequestProperty( name, httpHeaders.getStringField( name ) );
             }
-        } 
-     }
+        }
+    }
 
     protected void setupConnection( URL url )
         throws ConnectionException, AuthenticationException
@@ -210,12 +208,12 @@ public class HttpConnectionHelper
 
         AuthenticationInfo authenticationInfo = _wagon.getAuthenticationInfo();
         final boolean hasProxy = ( proxyInfo != null && proxyInfo.getUserName() != null );
-        final boolean hasAuthentication = ( authenticationInfo != null && 
-                                            authenticationInfo.getUserName() != null );
+        final boolean hasAuthentication = ( authenticationInfo != null && authenticationInfo.getUserName() != null );
         if ( hasProxy || hasAuthentication )
         {
             Authenticator.setDefault( new Authenticator()
             {
+                @Override
                 protected PasswordAuthentication getPasswordAuthentication()
                 {
                     // TODO: ideally use getRequestorType() from JDK1.5 here...

@@ -19,13 +19,14 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import java.util.Properties;
-
 import org.apache.maven.wagon.StreamingWagon;
+
+import java.util.Properties;
 
 public class JettyClientNtlmWagonTest
     extends NtlmWagonTestCase
-{   
+{
+    @Override
     protected String getProtocol()
     {
         return "http";

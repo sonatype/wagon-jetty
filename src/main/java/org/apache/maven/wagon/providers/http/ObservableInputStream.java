@@ -36,6 +36,7 @@ public class ObservableInputStream
         super( in );
     }
 
+    @Override
     public int read( byte[] b, int off, int len )
         throws IOException
     {
@@ -47,6 +48,7 @@ public class ObservableInputStream
         return result;
     }
 
+    @Override
     public int read()
         throws IOException
     {

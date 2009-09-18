@@ -19,18 +19,20 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import java.util.Properties;
-
 import org.apache.maven.wagon.StreamingWagon;
+
+import java.util.Properties;
 
 public class JettyClientHttpsWagonTest
     extends HttpWagonTestCase
-{   
+{
+    @Override
     protected String getProtocol()
     {
         return "https";
     }
 
+    @Override
     protected void setHttpHeaders( StreamingWagon wagon, Properties properties )
     {
         ( (JettyClientHttpWagon) wagon ).setHttpHeaders( properties );

@@ -19,59 +19,51 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.StringTokenizer;
-
 import org.apache.maven.wagon.providers.http.JettyClientHttpWagon.WagonExchange;
-import org.eclipse.jetty.client.Address;
 import org.eclipse.jetty.client.HttpDestination;
 import org.eclipse.jetty.client.HttpEventListenerWrapper;
 import org.eclipse.jetty.client.HttpExchange;
-import org.eclipse.jetty.client.security.BasicAuthorization;
-import org.eclipse.jetty.client.security.DigestAuthorization;
-import org.eclipse.jetty.client.security.Realm;
-import org.eclipse.jetty.client.security.RealmResolver;
 import org.eclipse.jetty.http.HttpHeaders;
 import org.eclipse.jetty.http.HttpStatus;
 import org.eclipse.jetty.io.Buffer;
-import org.eclipse.jetty.util.StringUtil;
-import org.eclipse.jetty.util.log.Log;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * WagonListener
  * 
- * Detect the NTLM authentication scheme and switch to HttpURLConnection 
+ * Detect the NTLM authentication scheme and switch to HttpURLConnection
  */
-public class WagonListener extends HttpEventListenerWrapper
+public class WagonListener
+    extends HttpEventListenerWrapper
 {
     private static HttpConnectionHelper _helper;
-    
+
     private HttpDestination _destination;
+
     private HttpExchange _exchange;
+
     private Set<String> _authTypes;
+
     private boolean _requestComplete;
-    private boolean _responseComplete;  
+
+    private boolean _responseComplete;
+
     private boolean _unAuthorized;
 
-    public WagonListener(HttpDestination destination, HttpExchange ex)
+    public WagonListener( HttpDestination destination, HttpExchange ex )
     {
         // Start of sending events through to the wrapped listener
         // Next decision point is the onResponseStatus
-        super(ex.getEventListener(),true);
-        
-        _authTypes = new HashSet<String>();       
+        super( ex.getEventListener(), true );
+
+        _authTypes = new HashSet<String>();
         _destination = destination;
         _exchange = ex;
-    } 
-    
+    }
+
     /**
      * scrapes an authentication type from the authString
      * 
@@ -81,79 +73,83 @@ public class WagonListener extends HttpEventListenerWrapper
     protected String scrapeAuthenticationType( String authString )
     {
         int idx = authString.indexOf( " " );
-        return (idx < 0 ? authString:authString.substring( 0, idx )).trim().toLowerCase();
+        return ( idx < 0 ? authString : authString.substring( 0, idx ) ).trim().toLowerCase();
     }
-    
+
+    @Override
     public void onResponseStatus( Buffer version, int status, Buffer reason )
         throws IOException
     {
-        _unAuthorized = (status == HttpStatus.UNAUTHORIZED_401);
-        
-        if (_unAuthorized)
+        _unAuthorized = ( status == HttpStatus.UNAUTHORIZED_401 );
+
+        if ( _unAuthorized )
         {
-            setDelegatingRequests(false);
-            setDelegatingResponses(false);
+            setDelegatingRequests( false );
+            setDelegatingResponses( false );
         }
-        
-        super.onResponseStatus(version,status,reason);
+
+        super.onResponseStatus( version, status, reason );
     }
 
-
+    @Override
     public void onResponseHeader( Buffer name, Buffer value )
         throws IOException
-    {               
-        if (_unAuthorized)
+    {
+        if ( _unAuthorized )
         {
-            int header = HttpHeaders.CACHE.getOrdinal(name);
-            switch (header)
+            int header = HttpHeaders.CACHE.getOrdinal( name );
+            switch ( header )
             {
                 case HttpHeaders.WWW_AUTHENTICATE_ORDINAL:
                     String authString = value.toString();
-                    _authTypes.add(scrapeAuthenticationType( authString ));    
+                    _authTypes.add( scrapeAuthenticationType( authString ) );
                     break;
             }
         }
-        super.onResponseHeader(name,value);
+        super.onResponseHeader( name, value );
     }
 
-    public void onRequestComplete() throws IOException
+    @Override
+    public void onRequestComplete()
+        throws IOException
     {
         _requestComplete = true;
         checkExchangeComplete();
-        
-        super.onRequestComplete(); 
+
+        super.onRequestComplete();
     }
 
-    public void onResponseComplete() throws IOException
-    {   
-        _responseComplete = true;  
+    @Override
+    public void onResponseComplete()
+        throws IOException
+    {
+        _responseComplete = true;
         checkExchangeComplete();
 
-        super.onResponseComplete(); 
+        super.onResponseComplete();
     }
-    
-    public void checkExchangeComplete() throws IOException
-    {
-        if (_unAuthorized && _requestComplete && _responseComplete)
-        {            
-            setDelegatingRequests(true);
-            setDelegatingResponses(true);
 
-            if (_helper != null && _authTypes.contains("ntlm")
-            	&& _exchange instanceof WagonExchange)
+    public void checkExchangeComplete()
+        throws IOException
+    {
+        if ( _unAuthorized && _requestComplete && _responseComplete )
+        {
+            setDelegatingRequests( true );
+            setDelegatingResponses( true );
+
+            if ( _helper != null && _authTypes.contains( "ntlm" ) && _exchange instanceof WagonExchange )
             {
-               _helper.send((WagonExchange)_exchange);
+                _helper.send( (WagonExchange) _exchange );
             }
             else
             {
-                setDelegationResult(false);
+                setDelegationResult( false );
             }
         }
     }
-    
-    public static void setHelper(HttpConnectionHelper helper)
+
+    public static void setHelper( HttpConnectionHelper helper )
     {
         _helper = helper;
     }
 }
-

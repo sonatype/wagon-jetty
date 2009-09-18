@@ -19,15 +19,6 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import java.io.File;
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-
 import org.apache.maven.wagon.ConnectionException;
 import org.apache.maven.wagon.FileTestUtils;
 import org.apache.maven.wagon.ResourceDoesNotExistException;
@@ -48,6 +39,14 @@ import org.codehaus.plexus.util.FileUtils;
 import org.easymock.AbstractMatcher;
 import org.easymock.MockControl;
 
+import java.io.File;
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
 /**
  * @author <a href="mailto:jason@maven.org">Jason van Zyl</a>
  */
@@ -59,7 +58,8 @@ public abstract class WagonTestCase
     {
         private int size;
 
-        protected boolean argumentMatches( Object expected, Object actual )
+        @Override
+        protected boolean argumentMatches( final Object expected, final Object actual )
         {
             if ( actual instanceof byte[] )
             {
@@ -107,6 +107,7 @@ public abstract class WagonTestCase
     // Constructors
     // ----------------------------------------------------------------------
 
+    @Override
     protected void setUp()
         throws Exception
     {
@@ -124,13 +125,15 @@ public abstract class WagonTestCase
 
     protected abstract void setupTestServer()
         throws Exception;
-    
+
     protected abstract void stopTestServer()
         throws Exception;
 
     /**
      * URL of the repository. For a complete test it should point to a non existing folder so we also check for the
-     * creation of new folders in the remote site. <p/> return the URL of the repository as specified by Wagon syntax
+     * creation of new folders in the remote site.
+     * <p/>
+     * return the URL of the repository as specified by Wagon syntax
      */
     protected abstract String getTestRepositoryUrl()
         throws IOException;
@@ -141,7 +144,7 @@ public abstract class WagonTestCase
      * @return the protocol id
      */
     protected abstract String getProtocol();
-    
+
     // ----------------------------------------------------------------------
     // 1. Create a local file repository which mimic a users local file
     // Repository.
@@ -228,15 +231,16 @@ public abstract class WagonTestCase
         return wagon;
     }
 
-    protected void message( String message )
+    protected void message( final String message )
     {
         System.out.println( message );
     }
 
-    protected void alert( String message )
+    protected void alert( final String message )
     {
         System.err.println( message );
     }
+
     // ----------------------------------------------------------------------
     //
     // ----------------------------------------------------------------------
@@ -244,17 +248,17 @@ public abstract class WagonTestCase
     public void testWagon()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
 
         fileRoundTripTesting();
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -264,18 +268,18 @@ public abstract class WagonTestCase
     {
         if ( supportsGetIfNewer() )
         {
-            alert("\n\nRunning test: "+getName());
+            alert( "\n\nRunning test: " + getName() );
 
             setupTestServer();
-            
+
             setupRepositories();
 
             setupWagonTestingFixtures();
-            
+
             int expectedSize = putFile();
-            
-            getIfNewer( getExpectedLastModifiedOnGet( testRepository, new Resource( resource ) ) + 30000, 
-                        false, expectedSize );
+
+            getIfNewer( getExpectedLastModifiedOnGet( testRepository, new Resource( resource ) ) + 30000, false,
+                        expectedSize );
         }
     }
 
@@ -289,16 +293,16 @@ public abstract class WagonTestCase
     {
         if ( supportsGetIfNewer() )
         {
-            alert("\n\nRunning test: "+getName());
+            alert( "\n\nRunning test: " + getName() );
 
             setupTestServer();
-            
+
             setupRepositories();
 
             setupWagonTestingFixtures();
-            
+
             int expectedSize = putFile();
-            
+
             getIfNewer( new SimpleDateFormat( "yyyy-MM-dd" ).parse( "2006-01-01" ).getTime(), true, expectedSize );
         }
     }
@@ -308,21 +312,21 @@ public abstract class WagonTestCase
     {
         if ( supportsGetIfNewer() )
         {
-            alert("\n\nRunning test: "+getName());
+            alert( "\n\nRunning test: " + getName() );
 
             setupTestServer();
-            
+
             setupRepositories();
 
             setupWagonTestingFixtures();
-            
+
             int expectedSize = putFile();
-            
+
             getIfNewer( getExpectedLastModifiedOnGet( testRepository, new Resource( resource ) ), false, expectedSize );
         }
     }
 
-    private void getIfNewer( long timestamp, boolean expectedResult, int expectedSize )
+    private void getIfNewer( final long timestamp, final boolean expectedResult, final int expectedSize )
         throws Exception, NoSuchAlgorithmException, IOException, ConnectionException, AuthenticationException,
         TransferFailedException, ResourceDoesNotExistException, AuthorizationException
     {
@@ -339,13 +343,13 @@ public abstract class WagonTestCase
 
         assertGetIfNewerTest( progressArgumentMatcher, expectedResult, expectedSize );
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
 
-    protected void assertGetIfNewerTest( ProgressArgumentMatcher progressArgumentMatcher, boolean expectedResult,
-                                         int expectedSize )
+    protected void assertGetIfNewerTest( final ProgressArgumentMatcher progressArgumentMatcher,
+                                         final boolean expectedResult, final int expectedSize )
         throws IOException
     {
         if ( expectedResult == true )
@@ -376,7 +380,8 @@ public abstract class WagonTestCase
         }
     }
 
-    protected ProgressArgumentMatcher setupGetIfNewerTest( Wagon wagon, boolean expectedResult, int expectedSize )
+    protected ProgressArgumentMatcher setupGetIfNewerTest( final Wagon wagon, final boolean expectedResult,
+                                                           final int expectedSize )
         throws NoSuchAlgorithmException, IOException
     {
         checksumObserver = new ChecksumObserver();
@@ -398,7 +403,7 @@ public abstract class WagonTestCase
         return progressArgumentMatcher;
     }
 
-    private void replaceMockForSkippedGetIfNewer( Wagon wagon, int expectedSize )
+    private void replaceMockForSkippedGetIfNewer( final Wagon wagon, final int expectedSize )
     {
         Resource resource = new Resource( this.resource );
         mockTransferListener.transferInitiated( createTransferEvent( wagon, resource, TransferEvent.TRANSFER_INITIATED,
@@ -420,10 +425,10 @@ public abstract class WagonTestCase
     public void testWagonPutDirectory()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -458,7 +463,7 @@ public abstract class WagonTestCase
             wagon.disconnect();
         }
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -473,10 +478,10 @@ public abstract class WagonTestCase
     public void testWagonPutDirectoryDeepDestination()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -511,7 +516,7 @@ public abstract class WagonTestCase
             wagon.disconnect();
         }
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -525,7 +530,7 @@ public abstract class WagonTestCase
     public void testWagonPutDirectoryWhenDirectoryAlreadyExists()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         final String dirName = "directory-copy-existing";
 
@@ -534,7 +539,7 @@ public abstract class WagonTestCase
         final String[] resources = { "a/test-resource-2.txt", "a/b/test-resource-3.txt", "c/test-resource-4.txt" };
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -571,7 +576,7 @@ public abstract class WagonTestCase
             wagon.disconnect();
         }
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -585,14 +590,14 @@ public abstract class WagonTestCase
     public void testWagonPutDirectoryForDot()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         final String resourceToCreate = "test-resource-1.txt";
 
         final String[] resources = { "a/test-resource-2.txt", "a/b/test-resource-3.txt", "c/test-resource-4.txt" };
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -629,7 +634,7 @@ public abstract class WagonTestCase
             wagon.disconnect();
         }
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -638,17 +643,19 @@ public abstract class WagonTestCase
      * Create a directory with a resource and check that the other ones don't exist
      * 
      * @param wagon
-     * @param resourceToCreate name of the resource to be created
-     * @param dirName directory name to create
+     * @param resourceToCreate
+     *            name of the resource to be created
+     * @param dirName
+     *            directory name to create
      * @throws Exception
      */
-    protected void createDirectory( Wagon wagon, String resourceToCreate, String dirName )
+    protected void createDirectory( final Wagon wagon, final String resourceToCreate, final String dirName )
         throws Exception
     {
         writeTestFile( resourceToCreate );
     }
 
-    protected void assertResourcesAreInRemoteSide( Wagon wagon, List resourceNames )
+    protected void assertResourcesAreInRemoteSide( final Wagon wagon, final List resourceNames )
         throws IOException, TransferFailedException, ResourceDoesNotExistException, AuthorizationException
     {
         Iterator iter = resourceNames.iterator();
@@ -666,14 +673,17 @@ public abstract class WagonTestCase
     /**
      * Assert that a resource does not exist in the remote wagon system
      * 
-     * @param wagon wagon to get the resource from
-     * @param resourceName name of the resource
-     * @throws IOException if a temp file can't be created
+     * @param wagon
+     *            wagon to get the resource from
+     * @param resourceName
+     *            name of the resource
+     * @throws IOException
+     *             if a temp file can't be created
      * @throws AuthorizationException
      * @throws TransferFailedException
      * @since 1.0-beta-1
      */
-    protected void assertNotExists( Wagon wagon, String resourceName )
+    protected void assertNotExists( final Wagon wagon, final String resourceName )
         throws IOException, TransferFailedException, AuthorizationException
     {
         File tmpFile = File.createTempFile( "wagon", null );
@@ -692,7 +702,7 @@ public abstract class WagonTestCase
         }
     }
 
-    private void writeTestFile( String child )
+    private void writeTestFile( final String child )
         throws IOException
     {
         File dir = new File( sourceFile, child );
@@ -704,7 +714,7 @@ public abstract class WagonTestCase
         throws Exception
     {
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -736,7 +746,7 @@ public abstract class WagonTestCase
 
             wagon.disconnect();
 
-            tearDownWagonTestingFixtures();        
+            tearDownWagonTestingFixtures();
 
             stopTestServer();
         }
@@ -747,23 +757,23 @@ public abstract class WagonTestCase
     {
         if ( supportsGetIfNewer() )
         {
-            alert("\n\nRunning test: "+getName());
+            alert( "\n\nRunning test: " + getName() );
 
             setupTestServer();
-            
+
             setupRepositories();
 
             setupWagonTestingFixtures();
-            
+
             message( "Getting test artifact from test repository " + testRepository );
-            
+
             Wagon wagon = getWagon();
             wagon.addTransferListener( checksumObserver );
             wagon.connect( testRepository, getAuthInfo() );
-            
+
             destFile = getTestFile( getName() + ".txt" );
             destFile.deleteOnExit();
-            
+
             try
             {
                 wagon.getIfNewer( "fubar.txt", destFile, 0 );
@@ -780,7 +790,7 @@ public abstract class WagonTestCase
 
                 wagon.disconnect();
 
-                tearDownWagonTestingFixtures();        
+                tearDownWagonTestingFixtures();
 
                 stopTestServer();
             }
@@ -796,10 +806,10 @@ public abstract class WagonTestCase
     public void testWagonGetFileList()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -828,7 +838,7 @@ public abstract class WagonTestCase
         {
             assertTrue( "Filename '" + filenames[i] + "' should be in list.", list.contains( filenames[i] ) );
         }
-        
+
         // WAGON-250
         list = wagon.getFileList( "" );
         assertNotNull( "file list should not be null.", list );
@@ -842,7 +852,7 @@ public abstract class WagonTestCase
 
         wagon.disconnect();
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -856,10 +866,10 @@ public abstract class WagonTestCase
     public void testWagonGetFileListWhenDirectoryDoesNotExist()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -883,7 +893,7 @@ public abstract class WagonTestCase
         {
             wagon.disconnect();
 
-            tearDownWagonTestingFixtures();        
+            tearDownWagonTestingFixtures();
 
             stopTestServer();
         }
@@ -899,7 +909,7 @@ public abstract class WagonTestCase
         throws Exception
     {
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -914,7 +924,7 @@ public abstract class WagonTestCase
 
         wagon.disconnect();
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -928,10 +938,10 @@ public abstract class WagonTestCase
     public void testWagonResourceNotExists()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -944,7 +954,7 @@ public abstract class WagonTestCase
 
         wagon.disconnect();
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -956,7 +966,7 @@ public abstract class WagonTestCase
     // test repository that we have setup.
     // ----------------------------------------------------------------------
 
-    protected void putFile( String resourceName, String testFileName, String content )
+    protected void putFile( final String resourceName, final String testFileName, final String content )
         throws Exception
     {
         sourceFile = new File( FileTestUtils.getTestOutputDir(), testFileName );
@@ -978,7 +988,8 @@ public abstract class WagonTestCase
         verifyMock( progressArgumentMatcher, content.length() );
     }
 
-    protected ProgressArgumentMatcher replayMockForPut( String resourceName, String content, Wagon wagon )
+    protected ProgressArgumentMatcher replayMockForPut( final String resourceName, final String content,
+                                                        final Wagon wagon )
     {
         Resource resource = new Resource( resourceName );
         mockTransferListener.transferInitiated( createTransferEvent( wagon, resource, TransferEvent.TRANSFER_INITIATED,
@@ -1005,8 +1016,8 @@ public abstract class WagonTestCase
         return progressArgumentMatcher;
     }
 
-    protected TransferEvent createTransferEvent( Wagon wagon, Resource resource, int eventType, int requestType,
-                                                 File file )
+    protected TransferEvent createTransferEvent( final Wagon wagon, final Resource resource, final int eventType,
+                                                 final int requestType, final File file )
     {
         TransferEvent transferEvent = new TransferEvent( wagon, resource, eventType, requestType );
         transferEvent.setLocalFile( file );
@@ -1021,7 +1032,7 @@ public abstract class WagonTestCase
         return content.length();
     }
 
-    protected void getFile( int expectedSize )
+    protected void getFile( final int expectedSize )
         throws Exception
     {
         destFile = getTestFile( getName() + ".txt" );
@@ -1042,7 +1053,7 @@ public abstract class WagonTestCase
         verifyMock( progressArgumentMatcher, expectedSize );
     }
 
-    protected void verifyMock( ProgressArgumentMatcher progressArgumentMatcher, int length )
+    protected void verifyMock( final ProgressArgumentMatcher progressArgumentMatcher, final int length )
     {
         mockTransferListenerControl.verify();
 
@@ -1051,7 +1062,7 @@ public abstract class WagonTestCase
         mockTransferListenerControl.reset();
     }
 
-    protected void disconnectWagon( Wagon wagon )
+    protected void disconnectWagon( final Wagon wagon )
         throws ConnectionException
     {
         wagon.removeTransferListener( mockTransferListener );
@@ -1061,7 +1072,7 @@ public abstract class WagonTestCase
         wagon.disconnect();
     }
 
-    protected void connectWagon( Wagon wagon )
+    protected void connectWagon( final Wagon wagon )
         throws ConnectionException, AuthenticationException
     {
         wagon.addTransferListener( checksumObserver );
@@ -1071,7 +1082,7 @@ public abstract class WagonTestCase
         wagon.connect( testRepository, getAuthInfo() );
     }
 
-    protected ProgressArgumentMatcher replaceMockForGet( Wagon wagon, int expectedSize )
+    protected ProgressArgumentMatcher replaceMockForGet( final Wagon wagon, final int expectedSize )
     {
         Resource resource = new Resource( this.resource );
         mockTransferListener.transferInitiated( createTransferEvent( wagon, resource, TransferEvent.TRANSFER_INITIATED,
@@ -1097,12 +1108,12 @@ public abstract class WagonTestCase
         return progressArgumentMatcher;
     }
 
-    protected int getExpectedContentLengthOnGet( int expectedSize )
+    protected int getExpectedContentLengthOnGet( final int expectedSize )
     {
         return expectedSize;
     }
 
-    protected long getExpectedLastModifiedOnGet( Repository repository, Resource resource )
+    protected long getExpectedLastModifiedOnGet( final Repository repository, final Resource resource )
     {
         // default implementation - prone to failing if the time between test file creation and completion of putFile()
         // cross the "second" boundary, causing the "remote" and local files to have different times.
@@ -1144,7 +1155,7 @@ public abstract class WagonTestCase
     //
     // ----------------------------------------------------------------------
 
-    protected Repository createFileRepository( String url )
+    protected Repository createFileRepository( final String url )
     {
         File path = new File( url.substring( 7 ) );
 

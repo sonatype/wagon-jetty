@@ -19,15 +19,6 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.security.NoSuchAlgorithmException;
-import java.text.SimpleDateFormat;
-
 import org.apache.maven.wagon.ConnectionException;
 import org.apache.maven.wagon.FileTestUtils;
 import org.apache.maven.wagon.LazyFileOutputStream;
@@ -41,6 +32,15 @@ import org.apache.maven.wagon.resource.Resource;
 import org.codehaus.plexus.util.FileUtils;
 import org.codehaus.plexus.util.IOUtil;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
+
 /**
  * @author <a href="mailto:brett@apache.org">Brett Porter</a>
  */
@@ -50,10 +50,10 @@ public abstract class StreamingWagonTestCase
     public void testStreamingWagon()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -61,17 +61,17 @@ public abstract class StreamingWagonTestCase
         streamRoundTripTesting();
 
         tearDownWagonTestingFixtures();
-        
+
         stopTestServer();
     }
 
     public void testFailedGetToStream()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         setupTestServer();
-        
+
         setupRepositories();
 
         setupWagonTestingFixtures();
@@ -110,7 +110,7 @@ public abstract class StreamingWagonTestCase
             IOUtil.close( stream );
 
             tearDownWagonTestingFixtures();
-            
+
             stopTestServer();
         }
     }
@@ -120,16 +120,16 @@ public abstract class StreamingWagonTestCase
     {
         if ( supportsGetIfNewer() )
         {
-            alert("\n\nRunning test: "+getName());
+            alert( "\n\nRunning test: " + getName() );
 
             setupTestServer();
-            
+
             setupRepositories();
 
             setupWagonTestingFixtures();
-            
+
             int expectedSize = putFile();
-            
+
             getIfNewerToStream( getExpectedLastModifiedOnGet( testRepository, new Resource( resource ) ) + 30000,
                                 false, expectedSize );
         }
@@ -140,16 +140,16 @@ public abstract class StreamingWagonTestCase
     {
         if ( supportsGetIfNewer() )
         {
-            alert("\n\nRunning test: "+getName());
+            alert( "\n\nRunning test: " + getName() );
 
             setupTestServer();
-            
+
             setupRepositories();
 
             setupWagonTestingFixtures();
-            
+
             int expectedSize = putFile();
-            
+
             getIfNewerToStream( new SimpleDateFormat( "yyyy-MM-dd" ).parse( "2006-01-01" ).getTime(), true,
                                 expectedSize );
         }
@@ -160,16 +160,16 @@ public abstract class StreamingWagonTestCase
     {
         if ( supportsGetIfNewer() )
         {
-            alert("\n\nRunning test: "+getName());
+            alert( "\n\nRunning test: " + getName() );
 
             setupTestServer();
-            
+
             setupRepositories();
 
             setupWagonTestingFixtures();
-            
+
             int expectedSize = putFile();
-            
+
             getIfNewerToStream( getExpectedLastModifiedOnGet( testRepository, new Resource( resource ) ), false,
                                 expectedSize );
         }
@@ -186,7 +186,7 @@ public abstract class StreamingWagonTestCase
         connectWagon( wagon );
 
         OutputStream stream = new LazyFileOutputStream( destFile );
-        
+
         try
         {
             boolean result = wagon.getIfNewerToStream( this.resource, stream, timestamp );
@@ -196,12 +196,12 @@ public abstract class StreamingWagonTestCase
         {
             IOUtil.close( stream );
         }
-        
+
         disconnectWagon( wagon );
 
         assertGetIfNewerTest( progressArgumentMatcher, expectedResult, expectedSize );
 
-        tearDownWagonTestingFixtures();        
+        tearDownWagonTestingFixtures();
 
         stopTestServer();
     }
@@ -211,23 +211,23 @@ public abstract class StreamingWagonTestCase
     {
         if ( supportsGetIfNewer() )
         {
-            alert("\n\nRunning test: "+getName());
+            alert( "\n\nRunning test: " + getName() );
 
             setupTestServer();
-            
+
             setupRepositories();
-            
+
             setupWagonTestingFixtures();
-            
+
             message( "Getting test artifact from test repository " + testRepository );
-            
+
             StreamingWagon wagon = (StreamingWagon) getWagon();
             wagon.addTransferListener( checksumObserver );
             wagon.connect( testRepository, getAuthInfo() );
-            
+
             destFile = FileTestUtils.createUniqueFile( getName(), getName() );
             destFile.deleteOnExit();
-            
+
             OutputStream stream = null;
             try
             {
@@ -248,7 +248,7 @@ public abstract class StreamingWagonTestCase
 
                 IOUtil.close( stream );
 
-                tearDownWagonTestingFixtures();        
+                tearDownWagonTestingFixtures();
 
                 stopTestServer();
             }
@@ -258,7 +258,7 @@ public abstract class StreamingWagonTestCase
     protected void streamRoundTripTesting()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         int expectedSize = putStream();
 

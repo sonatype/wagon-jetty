@@ -19,46 +19,16 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.URL;
-import java.net.URLDecoder;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.zip.GZIPOutputStream;
-
-import javax.servlet.ServletException;
-import javax.servlet.ServletInputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import org.apache.maven.wagon.ConnectionException;
 import org.apache.maven.wagon.FileTestUtils;
-import org.apache.maven.wagon.ResourceDoesNotExistException;
 import org.apache.maven.wagon.StreamingWagon;
-import org.apache.maven.wagon.TransferFailedException;
 import org.apache.maven.wagon.Wagon;
-import org.apache.maven.wagon.authentication.AuthenticationException;
 import org.apache.maven.wagon.authentication.AuthenticationInfo;
-import org.apache.maven.wagon.authorization.AuthorizationException;
 import org.apache.maven.wagon.events.TransferListener;
 import org.apache.maven.wagon.observers.ChecksumObserver;
 import org.apache.maven.wagon.observers.Debug;
 import org.apache.maven.wagon.providers.http.JettyClientHttpWagon.WagonExchange;
-import org.apache.maven.wagon.providers.http.WagonTestCase.ProgressArgumentMatcher;
-import org.apache.maven.wagon.proxy.ProxyInfo;
 import org.apache.maven.wagon.repository.Repository;
 import org.apache.maven.wagon.repository.RepositoryPermissions;
-import org.apache.maven.wagon.resource.Resource;
 import org.codehaus.plexus.PlexusTestCase;
 import org.codehaus.plexus.util.FileUtils;
 import org.codehaus.plexus.util.IOUtil;
@@ -73,16 +43,27 @@ import org.mortbay.jetty.HttpConnection;
 import org.mortbay.jetty.Request;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.handler.AbstractHandler;
-import org.mortbay.jetty.handler.HandlerCollection;
-import org.mortbay.jetty.nio.SelectChannelConnector;
 import org.mortbay.jetty.security.Constraint;
 import org.mortbay.jetty.security.ConstraintMapping;
 import org.mortbay.jetty.security.HashUserRealm;
 import org.mortbay.jetty.security.SecurityHandler;
-import org.mortbay.jetty.security.SslSocketConnector;
 import org.mortbay.jetty.servlet.Context;
-import org.mortbay.jetty.servlet.DefaultServlet;
-import org.mortbay.jetty.servlet.ServletHolder;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URLDecoder;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import javax.servlet.ServletException;
+import javax.servlet.ServletInputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 public abstract class NtlmWagonTestCase
     extends PlexusTestCase
@@ -90,14 +71,17 @@ public abstract class NtlmWagonTestCase
     private Server server;
 
     private Connector[] connectors;
+
     private Handler[] handlers;
+
     private Context[] contexts;
 
     public static final class ProgressArgumentMatcher
         extends AbstractMatcher
     {
         private int size;
-    
+
+        @Override
         protected boolean argumentMatches( Object expected, Object actual )
         {
             if ( actual instanceof byte[] )
@@ -111,145 +95,145 @@ public abstract class NtlmWagonTestCase
             }
             return super.argumentMatches( expected, actual );
         }
-    
+
         public int getSize()
         {
             return size;
         }
     }
-    
+
     protected static String POM = "pom.xml";
-    
+
     protected Repository localRepository;
-    
+
     protected Repository testRepository;
-    
+
     protected String localRepositoryPath;
-    
+
     protected File sourceFile;
-    
+
     protected File destFile;
-    
+
     protected String resource;
-    
+
     protected File artifactSourceFile;
-    
+
     protected File artifactDestFile;
-    
+
     protected ChecksumObserver checksumObserver;
-    
+
     protected TransferListener mockTransferListener;
-    
+
     protected MockControl mockTransferListenerControl;
-    
+
     // ----------------------------------------------------------------------
     // Constructors
     // ----------------------------------------------------------------------
-    
-//    protected void setUp()
-//        throws Exception
-//    {
-//        checksumObserver = new ChecksumObserver();
-//    
-//        mockTransferListenerControl = MockControl.createControl( TransferListener.class );
-//        mockTransferListener = (TransferListener) mockTransferListenerControl.getMock();
-//    
-//        super.setUp();
-//    }
-    
+
+    // protected void setUp()
+    // throws Exception
+    // {
+    // checksumObserver = new ChecksumObserver();
+    //    
+    // mockTransferListenerControl = MockControl.createControl( TransferListener.class );
+    // mockTransferListener = (TransferListener) mockTransferListenerControl.getMock();
+    //    
+    // super.setUp();
+    // }
+
     /**
      * Protocol id of the Wagon to use, eg. <code>scp</code>, <code>ftp</code>
      * 
      * @return the protocol id
      */
     protected abstract String getProtocol();
-    
+
     protected void setupTestServer()
         throws Exception
     {
-//        stopTestServer();
-//
-//        File repositoryDirectory = getRepositoryDirectory();
-//        FileUtils.deleteDirectory( repositoryDirectory );
-//        repositoryDirectory.mkdirs();
-//        
-//        server = new Server( 0 );
-//        
-//        addConnectors( server );
-//        addHandlers( server );
-//        addContexts( server );
-//
-//        server.start();
+        // stopTestServer();
+        //
+        // File repositoryDirectory = getRepositoryDirectory();
+        // FileUtils.deleteDirectory( repositoryDirectory );
+        // repositoryDirectory.mkdirs();
+        //        
+        // server = new Server( 0 );
+        //        
+        // addConnectors( server );
+        // addHandlers( server );
+        // addContexts( server );
+        //
+        // server.start();
     }
-    
+
     protected void stopTestServer()
         throws Exception
     {
-//        if (server != null)
-//        {
-//            server.stop();
-//            server = null;
-//        }
+        // if (server != null)
+        // {
+        // server.stop();
+        // server = null;
+        // }
     }
-    
-//    protected void addConnectors( Server srv )
-//    {
-//        if ( connectors != null )
-//        {
-//            srv.setConnectors(connectors);
-//            connectors = null;
-//        }
-//        if (getProtocol().equalsIgnoreCase("http"))
-//        {
-//            SelectChannelConnector connector = new SelectChannelConnector();
-//            server.addConnector(connector);          
-//        }
-//        else
-//        {
-//            SslSocketConnector connector = new SslSocketConnector();
-//            String keystore = getTestFile("src/test/resources/ssl/keystore").getAbsolutePath();   
-//            connector.setPort(0);
-//            connector.setKeystore(keystore);
-//            connector.setPassword("storepwd");
-//            connector.setKeyPassword("keypwd");
-//            server.addConnector(connector);          
-//        }
-//    }
-//    
-//    protected void addHandlers( Server srv )
-//    {
-//        if ( handlers == null)
-//        {
-//            PutHandler putHandler = new PutHandler( getRepositoryPath() );
-//            srv.addHandler( putHandler ); 
-//        }
-//        else
-//        {
-//            srv.setHandlers(handlers);
-//            handlers = null;
-//        }
-//    }
-//
-//    protected void addContexts( Server srv )
-//        throws IOException
-//    {
-//        if ( contexts == null)
-//        {
-//            Context root = new Context( srv, "/", Context.SESSIONS );
-//            root.setResourceBase( getRepositoryPath() );
-//            ServletHolder servletHolder = new ServletHolder( new DefaultServlet() );
-//            servletHolder.setInitParameter( "gzip", "true" );
-//            root.addServlet( servletHolder, "/*" );
-//        }
-//        else
-//        {
-//            for (Context ctx : contexts)
-//            {
-//                srv.addHandler(ctx);
-//            }
-//            contexts = null;
-//        }
-//    }
+
+    // protected void addConnectors( Server srv )
+    // {
+    // if ( connectors != null )
+    // {
+    // srv.setConnectors(connectors);
+    // connectors = null;
+    // }
+    // if (getProtocol().equalsIgnoreCase("http"))
+    // {
+    // SelectChannelConnector connector = new SelectChannelConnector();
+    // server.addConnector(connector);
+    // }
+    // else
+    // {
+    // SslSocketConnector connector = new SslSocketConnector();
+    // String keystore = getTestFile("src/test/resources/ssl/keystore").getAbsolutePath();
+    // connector.setPort(0);
+    // connector.setKeystore(keystore);
+    // connector.setPassword("storepwd");
+    // connector.setKeyPassword("keypwd");
+    // server.addConnector(connector);
+    // }
+    // }
+    //    
+    // protected void addHandlers( Server srv )
+    // {
+    // if ( handlers == null)
+    // {
+    // PutHandler putHandler = new PutHandler( getRepositoryPath() );
+    // srv.addHandler( putHandler );
+    // }
+    // else
+    // {
+    // srv.setHandlers(handlers);
+    // handlers = null;
+    // }
+    // }
+    //
+    // protected void addContexts( Server srv )
+    // throws IOException
+    // {
+    // if ( contexts == null)
+    // {
+    // Context root = new Context( srv, "/", Context.SESSIONS );
+    // root.setResourceBase( getRepositoryPath() );
+    // ServletHolder servletHolder = new ServletHolder( new DefaultServlet() );
+    // servletHolder.setInitParameter( "gzip", "true" );
+    // root.addServlet( servletHolder, "/*" );
+    // }
+    // else
+    // {
+    // for (Context ctx : contexts)
+    // {
+    // srv.addHandler(ctx);
+    // }
+    // contexts = null;
+    // }
+    // }
 
     protected void setupRepositories()
         throws Exception
@@ -260,7 +244,7 @@ public abstract class NtlmWagonTestCase
         testRepository.setUrl( getTestRepositoryUrl() );
         testRepository.setPermissions( getPermissions() );
 
-        localRepositoryPath = getRepositoryPath();      
+        localRepositoryPath = getRepositoryPath();
         localRepository = createFileRepository( "file://" + localRepositoryPath );
         message( "Local repository: " + localRepository );
     }
@@ -282,36 +266,36 @@ public abstract class NtlmWagonTestCase
     {
         return getTestFile( "target/test-output/http-repository" );
     }
-    
+
     protected String getRepositoryPath()
     {
         return getRepositoryDirectory().getAbsolutePath();
     }
-    
+
     protected String getOutputPath()
     {
         return getTestFile( "target/test-output" ).getAbsolutePath();
     }
-    
+
     protected String getTestRepositoryUrl()
     {
-//        return getProtocol() + "://localhost:" + getLocalPort();
-    	// *TODO* return the URL of the test host
+        // return getProtocol() + "://localhost:" + getLocalPort();
+        // *TODO* return the URL of the test host
         return "http://host.domain.com/";
     }
-    
+
     protected int getLocalPort()
     {
-//        Connector[] cons = server.getConnectors();
-//        return cons[cons.length-1].getLocalPort();
-    	return 80;
+        // Connector[] cons = server.getConnectors();
+        // return cons[cons.length-1].getLocalPort();
+        return 80;
     }
 
     protected void setupWagonTestingFixtures()
         throws Exception
     {
     }
-    
+
     protected void tearDownWagonTestingFixtures()
         throws Exception
     {
@@ -353,90 +337,91 @@ public abstract class NtlmWagonTestCase
     {
         System.err.println( message );
     }
-    
+
     public void testHelperPut()
-	    throws Exception
-	{
-	    alert("\n\nRunning test: "+getName());
-	
-	    JettyClientHttpWagon wagon = (JettyClientHttpWagon) getWagon();
-	    wagon.setAuthInfo(getAuthInfo());
-	    
-	    String resourceURL = getTestRepositoryUrl()+"/ntlm/helper-res.txt";
-	    WagonExchange exchange = wagon.new WagonExchange();
-	    exchange.setURL(resourceURL);
-	    exchange.setMethod(HttpMethods.PUT);
-	    exchange.setResponseStatus(100);
-	    
-	    StringInputStream in = new StringInputStream("test helper");
-	    exchange.setRequestContentSource(in);
-	
-	    HttpConnectionHelper helper = new HttpConnectionHelper(wagon);
-	    helper.send(exchange);
-	
-	    int responseStatus=exchange.getResponseStatus();
-	    Set<Integer> success = new HashSet<Integer>(Arrays.asList(200, 201));
-	    assertTrue(success.contains(responseStatus));
-	}
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        JettyClientHttpWagon wagon = (JettyClientHttpWagon) getWagon();
+        wagon.setAuthInfo( getAuthInfo() );
+
+        String resourceURL = getTestRepositoryUrl() + "/ntlm/helper-res.txt";
+        WagonExchange exchange = wagon.new WagonExchange();
+        exchange.setURL( resourceURL );
+        exchange.setMethod( HttpMethods.PUT );
+        exchange.setResponseStatus( 100 );
+
+        StringInputStream in = new StringInputStream( "test helper" );
+        exchange.setRequestContentSource( in );
+
+        HttpConnectionHelper helper = new HttpConnectionHelper( wagon );
+        helper.send( exchange );
+
+        int responseStatus = exchange.getResponseStatus();
+        Set<Integer> success = new HashSet<Integer>( Arrays.asList( 200, 201 ) );
+        assertTrue( success.contains( responseStatus ) );
+    }
 
     public void testHelperGet()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
+        alert( "\n\nRunning test: " + getName() );
 
         JettyClientHttpWagon wagon = (JettyClientHttpWagon) getWagon();
-        wagon.setAuthInfo(getAuthInfo());
-        
-        String resourceURL = getTestRepositoryUrl()+"/ntlm/helper-res.txt";
+        wagon.setAuthInfo( getAuthInfo() );
+
+        String resourceURL = getTestRepositoryUrl() + "/ntlm/helper-res.txt";
         WagonExchange exchange = wagon.new WagonExchange();
-        exchange.setURL(resourceURL);
-        exchange.setMethod(HttpMethods.GET);
-        exchange.setResponseStatus(100);
+        exchange.setURL( resourceURL );
+        exchange.setMethod( HttpMethods.GET );
+        exchange.setResponseStatus( 100 );
 
-        HttpConnectionHelper helper = new HttpConnectionHelper(wagon);
-        helper.send(exchange);
+        HttpConnectionHelper helper = new HttpConnectionHelper( wagon );
+        helper.send( exchange );
 
-        assertEquals(200, exchange.getResponseStatus());
+        assertEquals( 200, exchange.getResponseStatus() );
     }
 
     public void testWagon()
         throws Exception
     {
-        alert("\n\nRunning test: "+getName());
-        
+        alert( "\n\nRunning test: " + getName() );
+
         setupTestServer();
-        
+
         setupRepositories();
-        
+
         setupWagonTestingFixtures();
-       
+
         String filepath = "ntlm/wagon-res.txt";
         String contents = "test wagon";
         putFile( filepath, filepath, contents );
-        
+
         StreamingWagon wagon = (StreamingWagon) getWagon();
-        
+
         wagon.connect( new Repository( "id", getTestRepositoryUrl() ), getAuthInfo() );
-    
+
         StringOutputStream out = new StringOutputStream();
         try
         {
-        	boolean result = wagon.resourceExists(filepath);       	
-        	
-        	assertTrue ( result );
+            boolean result = wagon.resourceExists( filepath );
 
-        	if (result) {
-        		wagon.getToStream( filepath, out );
-        	}
-        	
-            assertEquals( contents,  out.toString() );
+            assertTrue( result );
+
+            if ( result )
+            {
+                wagon.getToStream( filepath, out );
+            }
+
+            assertEquals( contents, out.toString() );
         }
         finally
         {
             wagon.disconnect();
-    
+
             tearDownWagonTestingFixtures();
-            
+
             stopTestServer();
         }
     }
@@ -447,15 +432,15 @@ public abstract class NtlmWagonTestCase
         sourceFile = new File( FileTestUtils.getTestOutputDir(), testFileName );
         sourceFile.getParentFile().mkdirs();
         FileUtils.fileWrite( sourceFile.getAbsolutePath(), content );
-    
+
         Wagon wagon = getWagon();
-    
+
         message( "Putting test artifact: " + resourceName + " into test repository " + testRepository );
-    
+
         wagon.connect( testRepository, getAuthInfo() );
-    
+
         wagon.put( sourceFile, resourceName );
-    
+
         wagon.disconnect();
     }
 
@@ -525,30 +510,30 @@ public abstract class NtlmWagonTestCase
         extends AbstractHandler
     {
         protected Map<String, String> headers;
-    
+
         public TestHeaderHandler()
         {
         }
-    
-        @SuppressWarnings("unchecked")
+
+        @SuppressWarnings( "unchecked" )
         public void handle( String target, HttpServletRequest request, HttpServletResponse response, int dispatch )
             throws IOException, ServletException
         {
-            headers = new HashMap<String,String>();
+            headers = new HashMap<String, String>();
             for ( Enumeration e = request.getHeaderNames(); e.hasMoreElements(); )
             {
                 String name = (String) e.nextElement();
                 headers.put( name, request.getHeader( name ) );
             }
-    
+
             response.setContentType( "text/plain" );
             response.setStatus( HttpServletResponse.SC_OK );
             response.getWriter().println( "Hello, World!" );
-    
+
             ( (Request) request ).setHandled( true );
         }
     }
-    
+
     private static class AuthorizingNtlmHandler
         extends AbstractHandler
     {
@@ -557,13 +542,15 @@ public abstract class NtlmWagonTestCase
         {
             response.addHeader( "WWW-Authenticate", "NTLM" );
             response.setStatus( 401 );
-            
+
             ( (Request) request ).setHandled( true );
         }
     }
+
     private static class AuthorizingProxyHandler
         extends TestHeaderHandler
     {
+        @Override
         public void handle( String target, HttpServletRequest request, HttpServletResponse response, int dispatch )
             throws IOException, ServletException
         {
@@ -596,11 +583,9 @@ public abstract class NtlmWagonTestCase
             HashUserRealm hashUserRealm = new HashUserRealm( "MyRealm" );
             hashUserRealm.put( "user", "secret" );
             hashUserRealm.addUserToRole( "user", "admin" );
-            
+
             setUserRealm( hashUserRealm );
-            setConstraintMappings( new ConstraintMapping[] { cm } );      
+            setConstraintMappings( new ConstraintMapping[] { cm } );
         }
     }
 }
-
-

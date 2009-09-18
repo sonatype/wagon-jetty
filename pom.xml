@@ -65,6 +65,7 @@ under the License.
     	<artifactId>jetty-client</artifactId>
     	<version>${jetty.version}</version>
     </dependency>
+    <!-- Present in removed wagon-http-shared dep closure. -->
     <dependency>
     	<groupId>org.codehaus.plexus</groupId>
     	<artifactId>plexus-container-default</artifactId>
@@ -84,6 +85,7 @@ under the License.
     	<type>jar</type>
     	<scope>test</scope>
     </dependency>
+    <!-- END: deps from wagon-http-shared -->
   </dependencies>
   <repositories>
     <repository>

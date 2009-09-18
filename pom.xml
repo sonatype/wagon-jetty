@@ -19,15 +19,9 @@ under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
-  <parent>
-    <groupId>org.sonatype.maven.wagon</groupId>
-    <artifactId>wagon-providers</artifactId>
-    <version>1.0-beta-7-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
-  </parent>
-
+  <groupId>org.sonatype.maven.wagon</groupId>
   <artifactId>wagon-http-jetty-client</artifactId>
+  <version>1.0-SNAPSHOT</version>
   <name>Maven Wagon Jetty HTTP Provider</name>
   <description>
     Wagon that gets and puts artifacts through http using Jetty http-client
@@ -49,6 +43,12 @@ under the License.
   </build>
   <dependencies>
     <dependency>
+      <groupId>org.apache.maven.wagon</groupId>
+      <artifactId>wagon-provider-api</artifactId>
+      <version>1.0-beta-6</version>
+    </dependency>
+    <!--
+    <dependency>
       <groupId>${pom.groupId}</groupId>
       <artifactId>wagon-http-shared</artifactId>
       <version>${pom.version}</version>
@@ -59,6 +59,7 @@ under the License.
         </exclusion>
       </exclusions>
     </dependency>
+    -->
     <dependency>
     	<groupId>org.eclipse.jetty</groupId>
     	<artifactId>jetty-client</artifactId>

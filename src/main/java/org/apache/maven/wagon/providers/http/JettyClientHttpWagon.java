@@ -21,7 +21,6 @@ package org.apache.maven.wagon.providers.http;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -50,13 +49,11 @@ import org.apache.maven.wagon.authorization.AuthorizationException;
 import org.apache.maven.wagon.events.TransferEvent;
 import org.apache.maven.wagon.proxy.ProxyInfo;
 import org.apache.maven.wagon.resource.Resource;
-import org.apache.maven.wagon.shared.http.HtmlFileListParser;
 import org.codehaus.plexus.util.StringUtils;
 import org.eclipse.jetty.client.Address;
 import org.eclipse.jetty.client.ContentExchange;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.HttpDestination;
-import org.eclipse.jetty.client.HttpEventListener;
 import org.eclipse.jetty.client.security.ProxyAuthorization;
 import org.eclipse.jetty.client.security.Realm;
 import org.eclipse.jetty.client.security.RealmResolver;
@@ -65,7 +62,6 @@ import org.eclipse.jetty.http.HttpHeaders;
 import org.eclipse.jetty.http.HttpMethods;
 import org.eclipse.jetty.io.Buffer;
 import org.eclipse.jetty.io.BufferUtil;
-import org.eclipse.jetty.io.ByteArrayBuffer;
 
 /**
  * JettyClientHttpWagon
@@ -477,6 +473,8 @@ public class JettyClientHttpWagon
     public List getFileList( String destinationDirectory )
         throws TransferFailedException, ResourceDoesNotExistException, AuthorizationException 
     {
+        throw new UnsupportedOperationException();
+        /*
         String resourceName = destinationDirectory;
         if (!resourceName.endsWith("/"))
             resourceName += "/";
@@ -485,6 +483,7 @@ public class JettyClientHttpWagon
         
         getIfNewerToStream(resourceName,stream,0);
         return HtmlFileListParser.parseFileList( buildUrl(resourceName), new ByteArrayInputStream(stream.toByteArray()) );
+        */
     }
         
     protected void setRequestContentSource(WagonExchange exchange, InputStream srcStream, File srcFile) throws IOException

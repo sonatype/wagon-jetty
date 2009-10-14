@@ -27,7 +27,7 @@ under the License.
     Wagon that gets and puts artifacts through http using Jetty http-client
   </description>
   <properties>
-    <jetty.version>7.0.0.RC6</jetty.version>  
+    <jetty.version>7.0.0.v20091005</jetty.version>  
   </properties>
   <build>
     <plugins>

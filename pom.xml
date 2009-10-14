@@ -27,7 +27,7 @@ under the License.
     Wagon that gets and puts artifacts through http using Jetty http-client
   </description>
   <properties>
-    <jetty.version>7.0.0.RC6-SNAPSHOT</jetty.version>  
+    <jetty.version>7.0.0.RC6</jetty.version>  
   </properties>
   <build>
     <plugins>
@@ -42,6 +42,11 @@ under the License.
     </plugins>
   </build>
   <dependencies>
+    <dependency>
+      <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-utils</artifactId>
+      <version>2.0.0</version>
+    </dependency>
     <dependency>
       <groupId>org.apache.maven.wagon</groupId>
       <artifactId>wagon-provider-api</artifactId>
@@ -61,29 +66,36 @@ under the License.
     </dependency>
     -->
     <dependency>
-    	<groupId>org.eclipse.jetty</groupId>
-    	<artifactId>jetty-client</artifactId>
-    	<version>${jetty.version}</version>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-client</artifactId>
+      <version>${jetty.version}</version>
     </dependency>
     <!-- Present in removed wagon-http-shared dep closure. -->
     <dependency>
-    	<groupId>org.codehaus.plexus</groupId>
-    	<artifactId>plexus-container-default</artifactId>
-    	<version>1.2.0</version>
+      <groupId>org.codehaus.plexus</groupId>
+      <artifactId>plexus-container-default</artifactId>
+      <version>1.3.0</version>
+      <scope>test</scope>
     </dependency>
     <dependency>
-    	<groupId>org.easymock</groupId>
-    	<artifactId>easymock</artifactId>
-    	<version>2.4</version>
-    	<type>jar</type>
-    	<scope>test</scope>
+      <groupId>org.easymock</groupId>
+      <artifactId>easymock</artifactId>
+      <version>2.4</version>
+      <type>jar</type>
+      <scope>test</scope>
     </dependency>
     <dependency>
-    	<groupId>org.apache.maven.wagon</groupId>
-    	<artifactId>wagon-provider-test</artifactId>
-    	<version>1.0-beta-6</version>
-    	<type>jar</type>
-    	<scope>test</scope>
+      <groupId>org.apache.maven.wagon</groupId>
+      <artifactId>wagon-provider-test</artifactId>
+      <version>1.0-beta-6</version>
+      <type>jar</type>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>easymock</groupId>
+          <artifactId>easymock</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <!-- END: deps from wagon-http-shared -->
   </dependencies>

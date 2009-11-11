@@ -281,7 +281,7 @@ public abstract class NtlmWagonTestCase
     {
         // return getProtocol() + "://localhost:" + getLocalPort();
         // *TODO* return the URL of the test host
-        return "http://host.domain.com/";
+        return System.getProperty( "ntlm.host", "http://host.domain.com/" );
     }
 
     protected int getLocalPort()

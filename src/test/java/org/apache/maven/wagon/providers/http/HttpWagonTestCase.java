@@ -224,57 +224,14 @@ public abstract class HttpWagonTestCase
     public void testWagonGetFileList()
         throws Exception
     {
-        alert( "\n\nRunning test: " + getName() );
+        // not supported
+    }
 
-        setupTestServer();
-
-        setupRepositories();
-
-        setupWagonTestingFixtures();
-
-        String dirName = "file-list";
-        File f = new File( getRepositoryPath(), dirName );
-        f.mkdirs();
-
-        String filenames[] =
-            new String[] { "test-resource.txt", "test-resource.pom", "test-resource b.txt", "more-resources.dat",
-                ".index.txt" };
-
-        for ( int i = 0; i < filenames.length; i++ )
-        {
-            putFile( dirName + "/" + filenames[i], dirName + "/" + filenames[i], filenames[i] + "\n" );
-        }
-
-        Wagon wagon = getWagon();
-
-        wagon.connect( testRepository, getAuthInfo() );
-
-        List list = wagon.getFileList( dirName );
-        assertNotNull( "file list should not be null.", list );
-        assertTrue( "file list should contain more items (actually contains '" + list + "').",
-                    list.size() >= filenames.length );
-
-        for ( int i = 0; i < filenames.length; i++ )
-        {
-            assertTrue( "Filename '" + filenames[i] + "' should be in list.", list.contains( filenames[i] ) );
-        }
-
-        // WAGON-250
-        list = wagon.getFileList( "" );
-        assertNotNull( "file list should not be null.", list );
-        assertTrue( "file list should contain items (actually contains '" + list + "').", !list.isEmpty() );
-        assertTrue( list.contains( "file-list/" ) );
-        assertFalse( list.contains( "file-list" ) );
-        assertFalse( list.contains( "." ) );
-        assertFalse( list.contains( ".." ) );
-        assertFalse( list.contains( "./" ) );
-        assertFalse( list.contains( "../" ) );
-
-        wagon.disconnect();
-
-        tearDownWagonTestingFixtures();
-
-        stopTestServer();
+    @Override
+    public void testWagonGetFileListWhenDirectoryDoesNotExist()
+        throws Exception
+    {
+        // not supported
     }
 
     public void testHttpHeaders()

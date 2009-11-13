@@ -111,7 +111,7 @@ public class JettyClientHttpWagon
     public JettyClientHttpWagon()
     {
         // needed for unit testing
-        _requestState = new RequestState( TransferEvent.REQUEST_GET );
+        _requestState = new RequestState( TransferEvent.REQUEST_GET, null );
     }
 
     public void setAuthInfo( final AuthenticationInfo authInfo )
@@ -263,7 +263,7 @@ public class JettyClientHttpWagon
         _resource = resource;
         String resourceUrl = buildUrl( _resource.getName() );
 
-        _requestState = new RequestState( TransferEvent.REQUEST_GET );
+        _requestState = new RequestState( TransferEvent.REQUEST_GET, destination );
         _requestState.addRequestHeader( "Accept-Encoding", "gzip" );
         if ( !useCache )
         {
@@ -404,7 +404,7 @@ public class JettyClientHttpWagon
         throws TransferFailedException, AuthorizationException, ResourceDoesNotExistException
     {
         _resource = resource;
-        _requestState = new RequestState( TransferEvent.REQUEST_PUT );
+        _requestState = new RequestState( TransferEvent.REQUEST_PUT, source );
         if ( !useCache )
         {
             _requestState.addRequestHeader( "Pragma", "no-cache" );
@@ -801,23 +801,40 @@ public class JettyClientHttpWagon
                     break;
             }
         }
+
+        @Override
+        public void reset()
+        {
+            super.reset();
+
+            // restart, especially to reset checksum observers
+            if ( _requestState._requestType == TransferEvent.REQUEST_PUT )
+            {
+                firePutStarted( _resource, _requestState._transferEvent.getLocalFile() );
+            }
+            else
+            {
+                fireGetStarted( _resource, _requestState._transferEvent.getLocalFile() );
+            }
+        }
     }
 
     class RequestState
     {
-        public int _eventType;
+        public int _requestType;
 
         public TransferEvent _transferEvent;
 
         public HttpFields _requestHeaders;
 
-        public RequestState( final int eventType )
+        public RequestState( final int requestType, final File localFile )
         {
-            _eventType = eventType;
+            _requestType = requestType;
 
             _transferEvent =
-                new TransferEvent( JettyClientHttpWagon.this, _resource, TransferEvent.TRANSFER_PROGRESS, _eventType );
+                new TransferEvent( JettyClientHttpWagon.this, _resource, TransferEvent.TRANSFER_PROGRESS, _requestType );
             _transferEvent.setTimestamp( System.currentTimeMillis() );
+            _transferEvent.setLocalFile( localFile );
 
             _requestHeaders = new HttpFields();
         }

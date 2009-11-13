@@ -27,6 +27,7 @@ import org.apache.maven.wagon.Wagon;
 import org.apache.maven.wagon.authentication.AuthenticationException;
 import org.apache.maven.wagon.authentication.AuthenticationInfo;
 import org.apache.maven.wagon.authorization.AuthorizationException;
+import org.apache.maven.wagon.observers.ChecksumObserver;
 import org.apache.maven.wagon.proxy.ProxyInfo;
 import org.apache.maven.wagon.repository.Repository;
 import org.apache.maven.wagon.resource.Resource;
@@ -896,7 +897,7 @@ public abstract class HttpWagonTestCase
 
         String resName = "secured-put-res.txt";
         File srcFile = new File( getOutputPath(), resName );
-        FileUtils.fileWrite( srcFile.getAbsolutePath(), "put top secret" );
+        FileUtils.fileWrite( srcFile.getAbsolutePath(), "UTF-8", "put top secret" );
 
         File dstFile = new File( getRepositoryPath() + "/secured", resName );
         dstFile.mkdirs();
@@ -905,13 +906,18 @@ public abstract class HttpWagonTestCase
 
         StreamingWagon wagon = (StreamingWagon) getWagon();
 
+        ChecksumObserver checksumObserver = new ChecksumObserver( "SHA-1" );
+        wagon.addTransferListener( checksumObserver );
+
         wagon.connect( new Repository( "id", getTestRepositoryUrl() ), authInfo );
 
         try
         {
             wagon.put( srcFile, "secured/" + resName );
 
-            assertEquals( "put top secret", FileUtils.fileRead( dstFile.getAbsolutePath() ) );
+            assertEquals( "put top secret", FileUtils.fileRead( dstFile.getAbsolutePath(), "UTF-8" ) );
+
+            assertEquals( "8b4f978eeec389ebed2c8b0acd8e107efff29be5", checksumObserver.getActualChecksum() );
         }
         finally
         {

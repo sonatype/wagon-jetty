@@ -97,9 +97,6 @@ public class JettyClientHttpWagon
     /** @plexus.configuration default=2 */
     protected int maxConnections;
 
-    /** @plexus.configuration default=0 */
-    protected int connectionTimeout;
-
     private HttpClient _httpClient;
 
     private HttpFields _httpHeaders;
@@ -131,17 +128,16 @@ public class JettyClientHttpWagon
             _httpClient = new HttpClient();
 
             _httpClient.setConnectorType( HttpClient.CONNECTOR_SELECT_CHANNEL );
+            _httpClient.setTimeout( super.getTimeout() );
+            // TODO: Jetty 7.0.1: _httpClient.setConnectionTimeout( super.getTimeout() );
             if ( maxConnections > 0 )
             {
                 _httpClient.setMaxConnectionsPerAddress( maxConnections );
             }
-            if ( connectionTimeout > 0 )
-            {
-                _httpClient.setTimeout( connectionTimeout );
-            }
 
             _httpClient.registerListener( "org.apache.maven.wagon.providers.http.WagonListener" );
             _httpClient.registerListener( "org.eclipse.jetty.client.webdav.WebdavListener" );
+            _httpClient.registerListener( "org.eclipse.jetty.client.RedirectListener" );
 
             WagonListener.setHelper( new HttpConnectionHelper( this ) );
 

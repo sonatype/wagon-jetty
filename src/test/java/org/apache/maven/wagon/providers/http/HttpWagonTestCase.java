@@ -19,6 +19,8 @@
 
 package org.apache.maven.wagon.providers.http;
 
+import static junit.framework.Assert.fail;
+
 import org.apache.maven.wagon.ConnectionException;
 import org.apache.maven.wagon.ResourceDoesNotExistException;
 import org.apache.maven.wagon.StreamingWagon;
@@ -60,6 +62,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Random;
 import java.util.zip.GZIPOutputStream;
 
 import javax.servlet.ServletException;
@@ -978,6 +981,269 @@ public abstract class HttpWagonTestCase
         }
     }
 
+    public void testGetUnknownIP()
+        throws Exception
+    {
+        runTestGetUnknown( "http://244.0.0.0/" );
+    }
+
+    public void testGetUnknownHost()
+        throws Exception
+    {
+        runTestGetUnknown( "http://null.apache.org/" );
+    }
+
+    private void runTestGetUnknown( String url )
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+        wagon.setTimeout( 5000 );
+        try
+
+        {
+            wagon.connect( new Repository( "id", url ) );
+
+            wagon.getToStream( "resource", new StringOutputStream() );
+
+            fail();
+        }
+        catch ( TransferFailedException ex )
+        {
+            assertTrue( true );
+        }
+    }
+
+    public void testPutUnknownIP()
+        throws Exception
+    {
+        runTestPutUnknown( "http://244.0.0.0/" );
+    }
+
+    public void testPutUnknownHost()
+        throws Exception
+    {
+        runTestPutUnknown( "http://null.apache.org/" );
+    }
+
+    private void runTestPutUnknown( String url )
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        String resName = "put-res.txt";
+        File srcFile = new File( getOutputPath(), resName );
+        FileUtils.fileWrite( srcFile.getAbsolutePath(), "test put" );
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+        wagon.setTimeout( 5000 );
+
+        try
+        {
+            wagon.connect( new Repository( "id", url ) );
+
+            wagon.put( srcFile, resName );
+
+            fail();
+        }
+        catch ( TransferFailedException ex )
+        {
+            assertTrue( true );
+
+            srcFile.delete();
+        }
+    }
+
+    public void testHighLatencyGet()
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        Handler handler = new LatencyHandler( 500 );
+        handlers = new Handler[] { handler };
+        contexts = new Context[] {};
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+
+        wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+        StringOutputStream out = new StringOutputStream();
+        try
+        {
+            wagon.getToStream( "large.txt", out );
+
+            assertEquals( out.toString().length(), 10240 );
+        }
+        finally
+        {
+            wagon.disconnect();
+
+            tearDownWagonTestingFixtures();
+
+            stopTestServer();
+        }
+    }
+
+    public void testInfiniteLatencyGet()
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        Handler handler = new LatencyHandler( -1 );
+        handlers = new Handler[] { handler };
+        contexts = new Context[] {};
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+
+        wagon.setTimeout( 2000 );
+
+        wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+        StringOutputStream out = new StringOutputStream();
+        try
+        {
+            wagon.getToStream( "large.txt", out );
+
+            fail( "Should have failed to transfer due to transaction timeout." );
+        }
+        catch ( TransferFailedException e )
+        {
+            assertTrue( true );
+        }
+        finally
+        {
+            wagon.disconnect();
+
+            tearDownWagonTestingFixtures();
+
+            stopTestServer();
+        }
+    }
+
+    public void testGetRedirectOncePermanent()
+        throws Exception
+    {
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_PERMANENTLY, "/moved.txt", "/base.txt", 1 );
+    }
+
+    public void testGetRedirectOnceTemporary()
+        throws Exception
+    {
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_TEMPORARILY, "/moved.txt", "/base.txt", 1 );
+    }
+
+    public void testGetRedirectSixPermanent()
+        throws Exception
+    {
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_PERMANENTLY, "/moved.txt", "/base.txt", 6 );
+    }
+
+    public void testGetRedirectSixTemporary()
+        throws Exception
+    {
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_TEMPORARILY, "/moved.txt", "/base.txt", 6 );
+    }
+
+    private void runTestRedirectSuccess( int code, String currUrl, String origUrl, int maxRedirects )
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        Handler handler = new RedirectHandler( code, currUrl, origUrl, maxRedirects );
+        handlers = new Handler[] { handler };
+        contexts = new Context[] {};
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+
+        wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+        StringOutputStream out = new StringOutputStream();
+        try
+        {
+            wagon.getToStream( currUrl, out );
+
+            assertEquals( out.toString().length(), 1024 );
+        }
+        finally
+        {
+            wagon.disconnect();
+
+            tearDownWagonTestingFixtures();
+
+            stopTestServer();
+        }
+    }
+
+    public void testGetRedirectLimitPermanent()
+        throws Exception
+    {
+        runTestRedirectFail( HttpServletResponse.SC_MOVED_PERMANENTLY, "/moved.txt", "/base.txt", -1 );
+    }
+
+    public void testGetRedirectLimitTemporary()
+        throws Exception
+    {
+        runTestRedirectFail( HttpServletResponse.SC_MOVED_TEMPORARILY, "/moved.txt", "/base.txt", -1 );
+    }
+
+    private void runTestRedirectFail( int code, String currUrl, String origUrl, int maxRedirects )
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        Handler handler = new RedirectHandler( code, currUrl, origUrl, maxRedirects );
+        handlers = new Handler[] { handler };
+        contexts = new Context[] {};
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+
+        wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+        StringOutputStream out = new StringOutputStream();
+        try
+        {
+            wagon.getToStream( currUrl, out );
+            fail();
+        }
+        catch ( TransferFailedException ex )
+        {
+            assertTrue( true );
+        }
+        finally
+        {
+            wagon.disconnect();
+
+            tearDownWagonTestingFixtures();
+
+            stopTestServer();
+        }
+    }
+
     static class StatusHandler
         extends AbstractHandler
     {
@@ -1112,4 +1378,136 @@ public abstract class HttpWagonTestCase
             setConstraintMappings( new ConstraintMapping[] { cm } );
         }
     }
+
+    private static class LatencyHandler
+        extends AbstractHandler
+    {
+        private long delay;
+
+        public LatencyHandler( long delay )
+        {
+            this.delay = delay;
+        }
+
+        public void handle( String target, HttpServletRequest request, HttpServletResponse response, int dispatch )
+            throws IOException, ServletException
+        {
+            if ( ( (Request) request ).isHandled() )
+            {
+                return;
+            }
+
+            if ( delay < 0 )
+            {
+                System.out.println( "Starting infinite wait." );
+                synchronized ( this )
+                {
+                    try
+                    {
+                        wait();
+                    }
+                    catch ( InterruptedException e )
+                    {
+                    }
+                }
+
+                return;
+            }
+
+            Random randGen = new Random();
+
+            int buffSize = 1024;
+            byte[] buff = new byte[buffSize];
+            randGen.nextBytes( buff );
+
+            for ( int idx = 0; idx < buffSize; idx++ )
+            {
+                buff[idx] = (byte) ( buff[idx] & 0x6F + (int) ' ' );
+            }
+
+            OutputStream out = response.getOutputStream();
+            for ( int cnt = 0; cnt < 10; cnt++ )
+            {
+                try
+                {
+                    Thread.sleep( delay );
+                }
+                catch ( InterruptedException ex )
+                {
+                    // consume exception
+                }
+
+                out.write( buff );
+            }
+
+            ( (Request) request ).setHandled( true );
+        }
+    }
+
+    private static class RedirectHandler
+        extends AbstractHandler
+    {
+        private final String origUrl;
+
+        private final int code;
+
+        private final int maxRedirects;
+
+        private int redirectCount = 0;
+
+        private final String currUrl;
+
+        public RedirectHandler( final int code, final String currUrl, final String origUrl, final int maxRedirects )
+        {
+            this.code = code;
+            this.currUrl = currUrl;
+            this.origUrl = origUrl;
+            this.maxRedirects = maxRedirects;
+        }
+
+        public void handle( String target, HttpServletRequest request, HttpServletResponse response, int dispatch )
+            throws IOException, ServletException
+        {
+            if ( ( (Request) request ).isHandled() )
+            {
+                return;
+            }
+
+            if ( request.getRequestURI().equals( currUrl ) )
+            {
+                redirectCount++;
+
+                if ( maxRedirects < 0 || redirectCount <= maxRedirects )
+                {
+                    response.setStatus( code );
+                    response.setHeader( "Location", currUrl );
+                }
+                else
+                {
+                    response.setStatus( code );
+                    response.setHeader( "Location", origUrl );
+                }
+                ( (Request) request ).setHandled( true );
+            }
+            else if ( request.getRequestURI().equals( origUrl ) )
+            {
+                Random randGen = new Random();
+
+                int buffSize = 1024;
+                byte[] buff = new byte[buffSize];
+                randGen.nextBytes( buff );
+
+                for ( int idx = 0; idx < buffSize; idx++ )
+                {
+                    buff[idx] = (byte) ( buff[idx] & 0x6F + (int) ' ' );
+                }
+
+                OutputStream out = response.getOutputStream();
+                out.write( buff );
+
+                ( (Request) request ).setHandled( true );
+            }
+        }
+    }
+
 }

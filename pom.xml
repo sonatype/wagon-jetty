@@ -26,6 +26,13 @@ under the License.
   <description>
     Wagon that gets and puts artifacts through http using Jetty http-client
   </description>
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
   <properties>
     <jetty.version>7.0.0.v20091005</jetty.version>  
   </properties>

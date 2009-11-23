@@ -18,18 +18,42 @@
   -->
 
 <component-set>
-    <components>
-      <component>
-        <role>org.apache.maven.wagon.Wagon</role>
-        <role-hint>http</role-hint>
-        <implementation>org.apache.maven.wagon.providers.http.JettyClientHttpWagon</implementation>
-        <instantiation-strategy>per-lookup</instantiation-strategy>
-      </component>
-      <component>
-        <role>org.apache.maven.wagon.Wagon</role>
-        <role-hint>https</role-hint>
-        <implementation>org.apache.maven.wagon.providers.http.JettyClientHttpWagon</implementation>
-        <instantiation-strategy>per-lookup</instantiation-strategy>
-      </component>
-    </components>
+  <components>
+    <component>
+      <role>org.apache.maven.wagon.Wagon</role>
+      <role-hint>http</role-hint>
+      <implementation>org.apache.maven.wagon.providers.http.JettyClientHttpWagon</implementation>
+      <instantiation-strategy>per-lookup</instantiation-strategy>
+    </component>
+    <component>
+      <role>org.apache.maven.wagon.Wagon</role>
+      <role-hint>https</role-hint>
+      <implementation>org.apache.maven.wagon.providers.http.JettyClientHttpWagon</implementation>
+      <instantiation-strategy>per-lookup</instantiation-strategy>
+    </component>
+    <component>
+      <role>org.apache.maven.wagon.Wagon</role>
+      <role-hint>dav</role-hint>
+      <implementation>org.apache.maven.wagon.providers.http.JettyClientHttpWagon</implementation>
+      <instantiation-strategy>per-lookup</instantiation-strategy>
+    </component>
+    <component>
+      <role>org.apache.maven.wagon.Wagon</role>
+      <role-hint>davs</role-hint>
+      <implementation>org.apache.maven.wagon.providers.http.JettyClientHttpWagon</implementation>
+      <instantiation-strategy>per-lookup</instantiation-strategy>
+    </component>
+    <component>
+      <role>org.apache.maven.wagon.Wagon</role>
+      <role-hint>dav+http</role-hint>
+      <implementation>org.apache.maven.wagon.providers.http.JettyClientHttpWagon</implementation>
+      <instantiation-strategy>per-lookup</instantiation-strategy>
+    </component>
+    <component>
+      <role>org.apache.maven.wagon.Wagon</role>
+      <role-hint>dav+https</role-hint>
+      <implementation>org.apache.maven.wagon.providers.http.JettyClientHttpWagon</implementation>
+      <instantiation-strategy>per-lookup</instantiation-strategy>
+    </component>
+  </components>
 </component-set>

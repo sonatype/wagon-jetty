@@ -79,6 +79,8 @@ public class JettyClientHttpWagon
             put( "davs:", "https:" );
             put( "dav:http:", "http:" );
             put( "dav:https:", "https:" );
+            put( "dav+http:", "http:" );
+            put( "dav+https:", "https:" );
             put( "mttp:", "http:" );
             put( "mttps:", "https:" );
         }

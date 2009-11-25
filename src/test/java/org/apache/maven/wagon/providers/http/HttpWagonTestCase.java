@@ -19,13 +19,10 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import static junit.framework.Assert.fail;
-
 import org.apache.maven.wagon.ConnectionException;
 import org.apache.maven.wagon.ResourceDoesNotExistException;
 import org.apache.maven.wagon.StreamingWagon;
 import org.apache.maven.wagon.TransferFailedException;
-import org.apache.maven.wagon.Wagon;
 import org.apache.maven.wagon.authentication.AuthenticationException;
 import org.apache.maven.wagon.authentication.AuthenticationInfo;
 import org.apache.maven.wagon.authorization.AuthorizationException;
@@ -59,7 +56,6 @@ import java.io.OutputStream;
 import java.net.URLDecoder;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
@@ -73,13 +69,13 @@ import javax.servlet.http.HttpServletResponse;
 public abstract class HttpWagonTestCase
     extends StreamingWagonTestCase
 {
-    private Server server;
+    protected Server server;
 
-    private Connector[] connectors;
+    protected Connector[] connectors;
 
-    private Handler[] handlers;
+    protected Handler[] handlers;
 
-    private Context[] contexts;
+    protected Context[] contexts;
 
     @Override
     protected void setupTestServer()
@@ -118,21 +114,31 @@ public abstract class HttpWagonTestCase
             srv.setConnectors( connectors );
             connectors = null;
         }
-        if ( getProtocol().equalsIgnoreCase( "http" ) )
+        else if ( getProtocol().equalsIgnoreCase( "http" ) )
         {
-            SelectChannelConnector connector = new SelectChannelConnector();
-            server.addConnector( connector );
+            srv.addConnector( newHttpConnector() );
         }
         else
         {
-            SslSocketConnector connector = new SslSocketConnector();
-            String keystore = getTestFile( "src/test/resources/ssl/keystore" ).getAbsolutePath();
-            connector.setPort( 0 );
-            connector.setKeystore( keystore );
-            connector.setPassword( "storepwd" );
-            connector.setKeyPassword( "keypwd" );
-            server.addConnector( connector );
+            srv.addConnector( newHttpsConnector() );
         }
+    }
+
+    protected Connector newHttpConnector()
+    {
+        SelectChannelConnector connector = new SelectChannelConnector();
+        return connector;
+    }
+
+    protected Connector newHttpsConnector()
+    {
+        SslSocketConnector connector = new SslSocketConnector();
+        String keystore = getTestFile( "src/test/resources/ssl/keystore" ).getAbsolutePath();
+        connector.setPort( 0 );
+        connector.setKeystore( keystore );
+        connector.setPassword( "storepwd" );
+        connector.setKeyPassword( "keypwd" );
+        return connector;
     }
 
     protected void addHandlers( final Server srv )
@@ -1499,7 +1505,7 @@ public abstract class HttpWagonTestCase
 
                 for ( int idx = 0; idx < buffSize; idx++ )
                 {
-                    buff[idx] = (byte) ( buff[idx] & 0x6F + (int) ' ' );
+                    buff[idx] = (byte) ( buff[idx] & 0x2F + (int) ' ' );
                 }
 
                 OutputStream out = response.getOutputStream();

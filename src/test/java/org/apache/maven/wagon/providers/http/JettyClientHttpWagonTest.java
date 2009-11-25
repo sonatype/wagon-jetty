@@ -20,12 +20,25 @@
 package org.apache.maven.wagon.providers.http;
 
 import org.apache.maven.wagon.StreamingWagon;
+import org.apache.maven.wagon.repository.Repository;
+import org.mortbay.jetty.Connector;
+import org.mortbay.jetty.Handler;
+import org.mortbay.jetty.Request;
+import org.mortbay.jetty.handler.AbstractHandler;
+import org.mortbay.jetty.servlet.Context;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Properties;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 public class JettyClientHttpWagonTest
     extends HttpWagonTestCase
 {
+
     @Override
     protected String getProtocol()
     {
@@ -37,4 +50,79 @@ public class JettyClientHttpWagonTest
     {
         ( (JettyClientHttpWagon) wagon ).setHttpHeaders( properties );
     }
+
+    // FIXME: This must not fail
+    public void disabled_testGetRedirectFromHttpToHttps()
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        SslRedirectHandler handler = new SslRedirectHandler();
+        handlers = new Handler[] { handler };
+        contexts = new Context[] {};
+        connectors = new Connector[] { newHttpsConnector(), newHttpConnector() };
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        handler.httpsPort = server.getConnectors()[0].getLocalPort();
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+
+        wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try
+        {
+            wagon.getToStream( "/base.txt", out );
+
+            assertEquals( "PASSED", out.toString( "UTF-8" ) );
+        }
+        finally
+        {
+            wagon.disconnect();
+
+            tearDownWagonTestingFixtures();
+
+            stopTestServer();
+        }
+    }
+
+    private static class SslRedirectHandler
+        extends AbstractHandler
+    {
+
+        int httpsPort;
+
+        int redirects;
+
+        public void handle( String target, HttpServletRequest request, HttpServletResponse response, int dispatch )
+            throws IOException, ServletException
+        {
+            if ( ( (Request) request ).isHandled() )
+            {
+                return;
+            }
+
+            if ( request.getServerPort() != httpsPort )
+            {
+                String url = "https://" + request.getServerName() + ":" + httpsPort + request.getRequestURI();
+
+                response.setStatus( HttpServletResponse.SC_MOVED_PERMANENTLY );
+                response.setHeader( "Location", url );
+
+                redirects++;
+            }
+            else
+            {
+                response.getWriter().write( "PASSED" );
+            }
+
+            ( (Request) request ).setHandled( true );
+        }
+    }
+
 }

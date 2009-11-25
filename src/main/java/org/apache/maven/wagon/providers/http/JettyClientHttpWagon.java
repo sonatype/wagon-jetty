@@ -277,7 +277,7 @@ public class JettyClientHttpWagon
             httpExchange.setMethod( HttpMethods.GET );
 
             _httpClient.send( httpExchange );
-            int status = httpExchange.waitForDone();
+            httpExchange.waitForDone();
 
             int responseStatus = httpExchange.getResponseStatus();
             switch ( responseStatus )
@@ -422,7 +422,7 @@ public class JettyClientHttpWagon
             setRequestContentSource( httpExchange, stream, source );
 
             _httpClient.send( httpExchange );
-            int status = httpExchange.waitForDone();
+            httpExchange.waitForDone();
 
             int responseStatus = httpExchange.getResponseStatus();
 

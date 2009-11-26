@@ -525,7 +525,7 @@ public abstract class HttpWagonTestCase
 
             runTestProxiedRequest( proxyInfo, handler );
 
-            assertTrue( handler.headers.containsKey( "Proxy-Authorization" ) );
+            assertEquals( "Basic dXNlcjpzZWNyZXQ=", handler.headers.get( "Proxy-Authorization" ) );
         }
     }
 

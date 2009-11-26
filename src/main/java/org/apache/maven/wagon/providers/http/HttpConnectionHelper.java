@@ -128,6 +128,7 @@ class HttpConnectionHelper
         }
 
         int responseCode = urlConnection.getResponseCode();
+        exchange.setResponseStatus( responseCode );
         if ( responseCode == HttpURLConnection.HTTP_FORBIDDEN || responseCode == HttpURLConnection.HTTP_UNAUTHORIZED )
         {
             throw new AuthorizationException( "Access denied to: " + url );
@@ -146,7 +147,6 @@ class HttpConnectionHelper
 
         exchange.setLastModified( urlConnection.getLastModified() );
         exchange.setContentLength( urlConnection.getContentLength() );
-        exchange.setResponseStatus( responseCode );
     }
 
     void doPut( URL url, WagonExchange exchange )

@@ -99,6 +99,9 @@ public class JettyClientHttpWagon
     /** @plexus.configuration default=2 */
     protected int maxConnections;
 
+    /** @plexus.configuration default="10" */
+    private int maxRedirections = 10;
+
     private HttpClient _httpClient;
 
     private HttpFields _httpHeaders;
@@ -139,7 +142,6 @@ public class JettyClientHttpWagon
 
             _httpClient.registerListener( "org.apache.maven.wagon.providers.http.WagonListener" );
             _httpClient.registerListener( "org.eclipse.jetty.client.webdav.WebdavListener" );
-            _httpClient.registerListener( "org.eclipse.jetty.client.RedirectListener" );
 
             WagonListener.setHelper( new HttpConnectionHelper( this ) );
 
@@ -272,12 +274,48 @@ public class JettyClientHttpWagon
 
         try
         {
-            WagonExchange httpExchange = new WagonExchange();
-            httpExchange.setURL( resourceUrl );
-            httpExchange.setMethod( HttpMethods.GET );
+            WagonExchange httpExchange;
 
-            _httpClient.send( httpExchange );
-            httpExchange.waitForDone();
+            int redirect = 0;
+            do
+            {
+                httpExchange = new WagonExchange();
+                httpExchange.setURL( resourceUrl );
+                httpExchange.setMethod( HttpMethods.GET );
+
+                _httpClient.send( httpExchange );
+                httpExchange.waitForDone();
+
+                int responseStatus = httpExchange.getResponseStatus();
+                if ( responseStatus == ServerResponse.SC_MOVED_PERMANENTLY
+                    || responseStatus == ServerResponse.SC_MOVED_TEMPORARILY )
+                {
+                    String location = httpExchange.getLocation();
+                    if ( location != null )
+                    {
+                        if ( location.indexOf( "://" ) > 0 )
+                        {
+                            resourceUrl = location;
+                        }
+                        else
+                        {
+                            resourceUrl = httpExchange.getScheme() + "://" + httpExchange.getAddress();
+                            if ( !location.startsWith( "/" ) )
+                            {
+                                resourceUrl += "/";
+                            }
+                            resourceUrl += location;
+                        }
+
+                        redirect++;
+
+                        continue;
+                    }
+                }
+
+                break;
+            }
+            while ( redirect <= Math.max( maxRedirections, 0 ) );
 
             int responseStatus = httpExchange.getResponseStatus();
             switch ( responseStatus )
@@ -688,15 +726,17 @@ public class JettyClientHttpWagon
     class WagonExchange
         extends ContentExchange
     {
-        protected byte[] _responseContentBytes;
+        private byte[] _responseContentBytes;
 
-        protected int _responseStatus;
+        private int _responseStatus;
 
-        protected int _contentLength;
+        private int _contentLength;
 
-        protected String _contentEncoding;
+        private String _contentEncoding;
 
-        protected long _lastModified;
+        private long _lastModified;
+
+        private String _location;
 
         public WagonExchange()
         {
@@ -716,6 +756,11 @@ public class JettyClientHttpWagon
                     addRequestHeader( name, headers.getStringField( name ) );
                 }
             }
+        }
+
+        public String getLocation()
+        {
+            return _location;
         }
 
         public int getContentLength()
@@ -796,6 +841,9 @@ public class JettyClientHttpWagon
                     String lastModifiedStr = BufferUtil.to8859_1_String( value );
                     _lastModified =
                         ( lastModifiedStr == null || lastModifiedStr.length() == 0 ? 0 : Date.parse( lastModifiedStr ) );
+                    break;
+                case HttpHeaders.LOCATION_ORDINAL:
+                    _location = value.toString();
                     break;
             }
         }

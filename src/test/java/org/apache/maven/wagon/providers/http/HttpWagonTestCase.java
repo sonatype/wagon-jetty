@@ -1483,7 +1483,7 @@ public abstract class HttpWagonTestCase
             {
                 redirectCount++;
 
-                if ( maxRedirects < 0 || redirectCount <= maxRedirects )
+                if ( maxRedirects < 0 || redirectCount < maxRedirects )
                 {
                     response.setStatus( code );
                     response.setHeader( "Location", currUrl );

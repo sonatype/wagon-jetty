@@ -51,8 +51,7 @@ public class JettyClientHttpWagonTest
         ( (JettyClientHttpWagon) wagon ).setHttpHeaders( properties );
     }
 
-    // FIXME: This must not fail
-    public void disabled_testGetRedirectFromHttpToHttps()
+    public void testGetRedirectFromHttpToHttps()
         throws Exception
     {
         alert( "\n\nRunning test: " + getName() );
@@ -80,6 +79,7 @@ public class JettyClientHttpWagonTest
             wagon.getToStream( "/base.txt", out );
 
             assertEquals( "PASSED", out.toString( "UTF-8" ) );
+            assertEquals( 1, handler.redirects );
         }
         finally
         {

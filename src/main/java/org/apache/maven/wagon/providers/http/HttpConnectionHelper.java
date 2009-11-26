@@ -38,7 +38,6 @@ import java.net.PasswordAuthentication;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Enumeration;
-import java.util.zip.GZIPInputStream;
 
 class HttpConnectionHelper
 {
@@ -137,16 +136,12 @@ class HttpConnectionHelper
         if ( doGet )
         {
             InputStream is = urlConnection.getInputStream();
-            String contentEncoding = urlConnection.getHeaderField( "Content-Encoding" );
-            boolean isGZipped = contentEncoding == null ? false : "gzip".equalsIgnoreCase( contentEncoding );
-            if ( isGZipped )
-            {
-                is = new GZIPInputStream( is );
-            }
 
             ByteArrayOutputStream content = new ByteArrayOutputStream();
             IOUtil.copy( is, content );
             exchange.setResponseContentBytes( content.toByteArray() );
+
+            exchange.setContentEncoding( urlConnection.getContentEncoding() );
         }
 
         exchange.setLastModified( urlConnection.getLastModified() );

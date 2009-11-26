@@ -544,7 +544,7 @@ public class JettyClientHttpWagon
         if ( source != null )
         {
             String contentEncoding = exchange.getContentEncoding();
-            if ( contentEncoding != null && "gzip".equalsIgnoreCase( contentEncoding ) )
+            if ( "gzip".equalsIgnoreCase( contentEncoding ) )
             {
                 source = new GZIPInputStream( source );
             }

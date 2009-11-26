@@ -19,9 +19,7 @@
 
 package org.apache.maven.wagon.providers.http;
 
-import org.apache.maven.wagon.ConnectionException;
 import org.apache.maven.wagon.TransferFailedException;
-import org.apache.maven.wagon.authentication.AuthenticationException;
 import org.apache.maven.wagon.authentication.AuthenticationInfo;
 import org.apache.maven.wagon.authorization.AuthorizationException;
 import org.apache.maven.wagon.providers.http.JettyClientHttpWagon.WagonExchange;
@@ -33,6 +31,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
 import java.net.PasswordAuthentication;
@@ -41,7 +40,7 @@ import java.net.URLConnection;
 import java.util.Enumeration;
 import java.util.zip.GZIPInputStream;
 
-public class HttpConnectionHelper
+class HttpConnectionHelper
 {
     private JettyClientHttpWagon _wagon;
 
@@ -53,6 +52,10 @@ public class HttpConnectionHelper
 
     private String previousHttpProxyPort;
 
+    private Authenticator previousAuthenticator;
+
+    private static Field theAuthenticator;
+
     HttpConnectionHelper( JettyClientHttpWagon wagon )
     {
         _wagon = wagon;
@@ -60,6 +63,8 @@ public class HttpConnectionHelper
 
     public void send( WagonExchange exchange )
     {
+        URL url;
+
         try
         {
             StringBuilder urlBuilder = new StringBuilder();
@@ -67,8 +72,15 @@ public class HttpConnectionHelper
             urlBuilder.append( "://" );
             urlBuilder.append( exchange.getAddress().toString() );
             urlBuilder.append( exchange.getURI().replace( "//", "/" ) );
-            URL url = new URL( urlBuilder.toString() );
+            url = new URL( urlBuilder.toString() );
+        }
+        catch ( Exception e )
+        {
+            return;
+        }
 
+        try
+        {
             String method = exchange.getMethod();
 
             setupConnection( url );
@@ -85,15 +97,17 @@ public class HttpConnectionHelper
             {
                 doPut( url, exchange );
             }
-
-            closeConnection();
         }
         catch ( Exception e )
         {
         }
+        finally
+        {
+            closeConnection();
+        }
     }
 
-    public void doGet( URL url, WagonExchange exchange, boolean doGet )
+    void doGet( URL url, WagonExchange exchange, boolean doGet )
         throws Exception
     {
         urlConnection = (HttpURLConnection) url.openConnection();
@@ -140,7 +154,7 @@ public class HttpConnectionHelper
         exchange.setResponseStatus( responseCode );
     }
 
-    public void doPut( URL url, WagonExchange exchange )
+    void doPut( URL url, WagonExchange exchange )
         throws TransferFailedException
     {
         try
@@ -171,39 +185,33 @@ public class HttpConnectionHelper
         HttpFields httpHeaders = _wagon.getHttpHeaders();
         if ( httpHeaders != null )
         {
-            for ( Enumeration names = httpHeaders.getFieldNames(); names.hasMoreElements(); )
+            for ( Enumeration<String> names = httpHeaders.getFieldNames(); names.hasMoreElements(); )
             {
-                String name = (String) names.nextElement();
+                String name = names.nextElement();
                 urlConnection.setRequestProperty( name, httpHeaders.getStringField( name ) );
             }
         }
     }
 
-    protected void setupConnection( URL url )
-        throws ConnectionException, AuthenticationException
+    private void setupConnection( URL url )
     {
         previousHttpProxyHost = System.getProperty( "http.proxyHost" );
         previousHttpProxyPort = System.getProperty( "http.proxyPort" );
         previousProxyExclusions = System.getProperty( "http.nonProxyHosts" );
 
+        previousAuthenticator = getDefaultAuthenticator();
+
         final ProxyInfo proxyInfo = _wagon.getProxyInfo( "http", url.getHost() );
         if ( proxyInfo != null )
         {
-            System.setProperty( "http.proxyHost", proxyInfo.getHost() );
-            System.setProperty( "http.proxyPort", String.valueOf( proxyInfo.getPort() ) );
-            if ( proxyInfo.getNonProxyHosts() != null )
-            {
-                System.setProperty( "http.nonProxyHosts", proxyInfo.getNonProxyHosts() );
-            }
-            else
-            {
-                System.getProperties().remove( "http.nonProxyHosts" );
-            }
+            setSystemProperty( "http.proxyHost", proxyInfo.getHost() );
+            setSystemProperty( "http.proxyPort", String.valueOf( proxyInfo.getPort() ) );
+            setSystemProperty( "http.nonProxyHosts", proxyInfo.getNonProxyHosts() );
         }
         else
         {
-            System.getProperties().remove( "http.proxyHost" );
-            System.getProperties().remove( "http.proxyPort" );
+            setSystemProperty( "http.proxyHost", null );
+            setSystemProperty( "http.proxyPort", null );
         }
 
         AuthenticationInfo authenticationInfo = _wagon.getAuthenticationInfo();
@@ -249,36 +257,55 @@ public class HttpConnectionHelper
         }
     }
 
-    public void closeConnection()
-        throws ConnectionException
+    private void closeConnection()
     {
         if ( urlConnection != null )
         {
             urlConnection.disconnect();
         }
-        if ( previousHttpProxyHost != null )
+
+        setSystemProperty( "http.proxyHost", previousHttpProxyHost );
+        setSystemProperty( "http.proxyPort", previousHttpProxyPort );
+        setSystemProperty( "http.nonProxyHosts", previousProxyExclusions );
+
+        Authenticator.setDefault( previousAuthenticator );
+    }
+
+    private void setSystemProperty( String key, String value )
+    {
+        if ( value != null )
         {
-            System.setProperty( "http.proxyHost", previousHttpProxyHost );
+            System.setProperty( key, value );
         }
         else
         {
-            System.getProperties().remove( "http.proxyHost" );
-        }
-        if ( previousHttpProxyPort != null )
-        {
-            System.setProperty( "http.proxyPort", previousHttpProxyPort );
-        }
-        else
-        {
-            System.getProperties().remove( "http.proxyPort" );
-        }
-        if ( previousProxyExclusions != null )
-        {
-            System.setProperty( "http.nonProxyHosts", previousProxyExclusions );
-        }
-        else
-        {
-            System.getProperties().remove( "http.nonProxyHosts" );
+            System.clearProperty( key );
         }
     }
+
+    static Authenticator getDefaultAuthenticator()
+    {
+        if ( theAuthenticator == null )
+        {
+            try
+            {
+                theAuthenticator = Authenticator.class.getDeclaredField( "theAuthenticator" );
+                theAuthenticator.setAccessible( true );
+            }
+            catch ( Exception e )
+            {
+                // pity
+            }
+        }
+
+        try
+        {
+            return (Authenticator) theAuthenticator.get( null );
+        }
+        catch ( Exception e )
+        {
+            return null;
+        }
+    }
+
 }

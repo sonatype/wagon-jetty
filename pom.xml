@@ -34,7 +34,7 @@ under the License.
     </license>
   </licenses>
   <properties>
-    <jetty.version>7.0.0.v20091005</jetty.version>  
+    <jetty.version>7.0.0.v20091005</jetty.version>
   </properties>
   <build>
     <plugins>

@@ -710,9 +710,9 @@ public class JettyClientHttpWagon
         {
             if ( headers != null )
             {
-                for ( Enumeration names = headers.getFieldNames(); names.hasMoreElements(); )
+                for ( Enumeration<String> names = headers.getFieldNames(); names.hasMoreElements(); )
                 {
-                    String name = (String) names.nextElement();
+                    String name = names.nextElement();
                     addRequestHeader( name, headers.getStringField( name ) );
                 }
             }

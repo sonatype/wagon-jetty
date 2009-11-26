@@ -34,7 +34,9 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.Authenticator;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.PasswordAuthentication;
+import java.net.Proxy;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Enumeration;
@@ -44,12 +46,6 @@ class HttpConnectionHelper
     private JettyClientHttpWagon _wagon;
 
     private HttpURLConnection urlConnection;
-
-    private String previousProxyExclusions;
-
-    private String previousHttpProxyHost;
-
-    private String previousHttpProxyPort;
 
     private Authenticator previousAuthenticator;
 
@@ -82,19 +78,19 @@ class HttpConnectionHelper
         {
             String method = exchange.getMethod();
 
-            setupConnection( url );
+            Proxy proxy = setupConnection( url );
 
             if ( method.equalsIgnoreCase( "GET" ) )
             {
-                doGet( url, exchange, true );
+                doGet( url, proxy, exchange, true );
             }
             else if ( method.equalsIgnoreCase( "HEAD" ) )
             {
-                doGet( url, exchange, false );
+                doGet( url, proxy, exchange, false );
             }
             else if ( method.equalsIgnoreCase( "PUT" ) )
             {
-                doPut( url, exchange );
+                doPut( url, proxy, exchange );
             }
         }
         catch ( Exception e )
@@ -106,10 +102,10 @@ class HttpConnectionHelper
         }
     }
 
-    void doGet( URL url, WagonExchange exchange, boolean doGet )
+    private void doGet( URL url, Proxy proxy, WagonExchange exchange, boolean doGet )
         throws Exception
     {
-        urlConnection = (HttpURLConnection) url.openConnection();
+        urlConnection = (HttpURLConnection) url.openConnection( proxy );
         urlConnection.setRequestProperty( "Accept-Encoding", "gzip" );
         if ( !_wagon.getUseCache() )
         {
@@ -149,12 +145,12 @@ class HttpConnectionHelper
         exchange.setContentLength( urlConnection.getContentLength() );
     }
 
-    void doPut( URL url, WagonExchange exchange )
+    private void doPut( URL url, Proxy proxy, WagonExchange exchange )
         throws TransferFailedException
     {
         try
         {
-            urlConnection = (HttpURLConnection) url.openConnection();
+            urlConnection = (HttpURLConnection) url.openConnection( proxy );
 
             addHeaders( urlConnection );
 
@@ -188,40 +184,30 @@ class HttpConnectionHelper
         }
     }
 
-    private void setupConnection( URL url )
+    private Proxy setupConnection( URL url )
     {
-        previousHttpProxyHost = System.getProperty( "http.proxyHost" );
-        previousHttpProxyPort = System.getProperty( "http.proxyPort" );
-        previousProxyExclusions = System.getProperty( "http.nonProxyHosts" );
-
         previousAuthenticator = getDefaultAuthenticator();
+
+        Proxy proxy = Proxy.NO_PROXY;
 
         final ProxyInfo proxyInfo = _wagon.getProxyInfo( "http", url.getHost() );
         if ( proxyInfo != null )
         {
-            setSystemProperty( "http.proxyHost", proxyInfo.getHost() );
-            setSystemProperty( "http.proxyPort", String.valueOf( proxyInfo.getPort() ) );
-            setSystemProperty( "http.nonProxyHosts", proxyInfo.getNonProxyHosts() );
-        }
-        else
-        {
-            setSystemProperty( "http.proxyHost", null );
-            setSystemProperty( "http.proxyPort", null );
+            InetSocketAddress address = InetSocketAddress.createUnresolved( proxyInfo.getHost(), proxyInfo.getPort() );
+            proxy = new Proxy( Proxy.Type.HTTP, address );
         }
 
         AuthenticationInfo authenticationInfo = _wagon.getAuthenticationInfo();
-        final boolean hasProxy = ( proxyInfo != null && proxyInfo.getUserName() != null );
-        final boolean hasAuthentication = ( authenticationInfo != null && authenticationInfo.getUserName() != null );
-        if ( hasProxy || hasAuthentication )
+        final boolean hasProxyAuth = ( proxyInfo != null && proxyInfo.getUserName() != null );
+        final boolean hasServerAuth = ( authenticationInfo != null && authenticationInfo.getUserName() != null );
+        if ( hasProxyAuth || hasServerAuth )
         {
             Authenticator.setDefault( new Authenticator()
             {
                 @Override
                 protected PasswordAuthentication getPasswordAuthentication()
                 {
-                    // TODO: ideally use getRequestorType() from JDK1.5 here...
-                    if ( hasProxy && getRequestingHost().equals( proxyInfo.getHost() )
-                        && getRequestingPort() == proxyInfo.getPort() )
+                    if ( hasProxyAuth && RequestorType.PROXY.equals( getRequestorType() ) )
                     {
                         String password = "";
                         if ( proxyInfo.getPassword() != null )
@@ -231,7 +217,7 @@ class HttpConnectionHelper
                         return new PasswordAuthentication( proxyInfo.getUserName(), password.toCharArray() );
                     }
 
-                    if ( hasAuthentication )
+                    if ( hasServerAuth && RequestorType.SERVER.equals( getRequestorType() ) )
                     {
                         String password = "";
                         AuthenticationInfo authenticationInfo = _wagon.getAuthenticationInfo();
@@ -250,6 +236,8 @@ class HttpConnectionHelper
         {
             Authenticator.setDefault( null );
         }
+
+        return proxy;
     }
 
     private void closeConnection()
@@ -259,23 +247,7 @@ class HttpConnectionHelper
             urlConnection.disconnect();
         }
 
-        setSystemProperty( "http.proxyHost", previousHttpProxyHost );
-        setSystemProperty( "http.proxyPort", previousHttpProxyPort );
-        setSystemProperty( "http.nonProxyHosts", previousProxyExclusions );
-
         Authenticator.setDefault( previousAuthenticator );
-    }
-
-    private void setSystemProperty( String key, String value )
-    {
-        if ( value != null )
-        {
-            System.setProperty( key, value );
-        }
-        else
-        {
-            System.clearProperty( key );
-        }
     }
 
     static Authenticator getDefaultAuthenticator()

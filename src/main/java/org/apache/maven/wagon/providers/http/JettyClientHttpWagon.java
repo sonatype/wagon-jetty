@@ -44,6 +44,7 @@ import org.eclipse.jetty.http.HttpHeaders;
 import org.eclipse.jetty.http.HttpMethods;
 import org.eclipse.jetty.io.Buffer;
 import org.eclipse.jetty.io.BufferUtil;
+import org.eclipse.jetty.util.component.LifeCycle;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -207,6 +208,10 @@ public class JettyClientHttpWagon
         {
             urlBuilder.deleteCharAt( urlBuilder.length() - 1 ); // avoid double slash
         }
+        if ( urlBuilder.charAt( urlBuilder.length() - 1 ) == ':' )
+        {
+            urlBuilder.append( '/' );
+        }
 
         String resourceUri = resourceName;
         resourceUri.replace( ' ', '+' ); // encode whitespace
@@ -223,6 +228,28 @@ public class JettyClientHttpWagon
         }
 
         return urlBuilder.toString();
+    }
+
+    private void sendAndWait( WagonExchange httpExchange )
+        throws IOException, InterruptedException
+    {
+        ExchangeStopper exchangeStopper = new ExchangeStopper( httpExchange );
+
+        _httpClient.addLifeCycleListener( exchangeStopper );
+        try
+        {
+            _httpClient.send( httpExchange );
+            httpExchange.waitForDone();
+        }
+        finally
+        {
+            _httpClient.removeLifeCycleListener( exchangeStopper );
+        }
+    }
+
+    WagonExchange newExchange()
+    {
+        return new WagonExchange( _httpClient );
     }
 
     public void get( final String resourceName, final File destination )
@@ -279,12 +306,11 @@ public class JettyClientHttpWagon
             int redirect = 0;
             do
             {
-                httpExchange = new WagonExchange();
+                httpExchange = newExchange();
                 httpExchange.setURL( resourceUrl );
                 httpExchange.setMethod( HttpMethods.GET );
 
-                _httpClient.send( httpExchange );
-                httpExchange.waitForDone();
+                sendAndWait( httpExchange );
 
                 int responseStatus = httpExchange.getResponseStatus();
                 if ( responseStatus == ServerResponse.SC_MOVED_PERMANENTLY
@@ -388,9 +414,16 @@ public class JettyClientHttpWagon
         catch ( FileNotFoundException ex )
         {
             fireGetCompleted( _resource, null );
+
             throw new ResourceDoesNotExistException( "Transfer error: Resource not found in repository", ex );
         }
         catch ( IOException ex )
+        {
+            fireTransferError( _resource, ex, TransferEvent.REQUEST_GET );
+
+            throw new TransferFailedException( "Transfer error: " + ex.getMessage(), ex );
+        }
+        catch ( IllegalStateException ex )
         {
             fireTransferError( _resource, ex, TransferEvent.REQUEST_GET );
 
@@ -454,13 +487,12 @@ public class JettyClientHttpWagon
 
         try
         {
-            WagonExchange httpExchange = new WagonExchange();
+            WagonExchange httpExchange = newExchange();
             httpExchange.setURL( resourceUrl );
             httpExchange.setMethod( HttpMethods.PUT );
             setRequestContentSource( httpExchange, stream, source );
 
-            _httpClient.send( httpExchange );
-            httpExchange.waitForDone();
+            sendAndWait( httpExchange );
 
             int responseStatus = httpExchange.getResponseStatus();
 
@@ -503,9 +535,17 @@ public class JettyClientHttpWagon
         }
         catch ( InterruptedException ex )
         {
+            fireTransferError( _resource, ex, TransferEvent.REQUEST_PUT );
+
             throw new TransferFailedException( "Transfer interrupted: " + ex.getMessage(), ex );
         }
         catch ( IOException ex )
+        {
+            fireTransferError( _resource, ex, TransferEvent.REQUEST_PUT );
+
+            throw new TransferFailedException( "Transfer error: " + ex.getMessage(), ex );
+        }
+        catch ( IllegalStateException ex )
         {
             fireTransferError( _resource, ex, TransferEvent.REQUEST_PUT );
 
@@ -738,12 +778,16 @@ public class JettyClientHttpWagon
 
         private String _location;
 
-        public WagonExchange()
+        private final HttpClient _httpClient;
+
+        public WagonExchange(HttpClient httpClient)
         {
             super( false );
 
             addRequestHeaders( _requestState._requestHeaders );
             addRequestHeaders( _httpHeaders );
+
+            _httpClient = httpClient;
         }
 
         private void addRequestHeaders( final HttpFields headers )
@@ -756,6 +800,12 @@ public class JettyClientHttpWagon
                     addRequestHeader( name, headers.getStringField( name ) );
                 }
             }
+        }
+
+        @Override
+        public boolean isDone( int status )
+        {
+            return super.isDone( status ) || !_httpClient.isRunning();
         }
 
         public String getLocation()
@@ -863,6 +913,7 @@ public class JettyClientHttpWagon
                 fireGetStarted( _resource, _requestState._transferEvent.getLocalFile() );
             }
         }
+
     }
 
     class RequestState
@@ -890,4 +941,43 @@ public class JettyClientHttpWagon
             _requestHeaders.add( name, value );
         }
     }
+
+    class ExchangeStopper
+        implements LifeCycle.Listener
+    {
+
+        private WagonExchange _httpExchange;
+
+        public ExchangeStopper( WagonExchange httpExchange )
+        {
+            _httpExchange = httpExchange;
+        }
+
+        public void lifeCycleFailure( LifeCycle event, Throwable cause )
+        {
+        }
+
+        public void lifeCycleStarted( LifeCycle event )
+        {
+        }
+
+        public void lifeCycleStarting( LifeCycle event )
+        {
+        }
+
+        public void lifeCycleStopped( LifeCycle event )
+        {
+        }
+
+        public void lifeCycleStopping( LifeCycle event )
+        {
+            synchronized ( _httpExchange )
+            {
+                // WagonExchange.isDone() will notice the client has stopped, we just not to wake it up
+                _httpExchange.notifyAll();
+            }
+        }
+
+    }
+
 }

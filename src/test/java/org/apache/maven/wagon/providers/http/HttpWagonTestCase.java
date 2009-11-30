@@ -49,6 +49,7 @@ import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.DefaultServlet;
 import org.mortbay.jetty.servlet.ServletHolder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -1235,6 +1236,62 @@ public abstract class HttpWagonTestCase
         {
             wagon.getToStream( currUrl, out );
             fail();
+        }
+        catch ( TransferFailedException ex )
+        {
+            assertTrue( true );
+        }
+        finally
+        {
+            wagon.disconnect();
+
+            tearDownWagonTestingFixtures();
+
+            stopTestServer();
+        }
+    }
+
+    public void testGracefulFailureUnderMultithreadedMisuse()
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        Handler handler = new LatencyHandler( 500 );
+        handlers = new Handler[] { handler };
+        contexts = new Context[] {};
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        final StreamingWagon wagon = (StreamingWagon) getWagon();
+
+        wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+        new Thread( new Runnable()
+        {
+
+            public void run()
+            {
+                try
+                {
+                    Thread.sleep( 1000 );
+                    // closing the wagon from another thread must not hang the main thread
+                    wagon.disconnect();
+                }
+                catch ( Exception e )
+                {
+                    e.printStackTrace();
+                }
+            }
+
+        }, "wagon-killer" ).start();
+
+        try
+        {
+            wagon.getToStream( "large.txt", new ByteArrayOutputStream() );
         }
         catch ( TransferFailedException ex )
         {

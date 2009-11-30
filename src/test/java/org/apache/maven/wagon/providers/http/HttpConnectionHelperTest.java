@@ -50,7 +50,7 @@ public class HttpConnectionHelperTest
 
         HttpConnectionHelper helper = new HttpConnectionHelper( wagon );
 
-        WagonExchange exchange = wagon.new WagonExchange();
+        WagonExchange exchange = wagon.newExchange();
         exchange.setURL( "http://bad.host/test" );
 
         try
@@ -84,7 +84,7 @@ public class HttpConnectionHelperTest
 
         HttpConnectionHelper helper = new HttpConnectionHelper( wagon );
 
-        WagonExchange exchange = wagon.new WagonExchange();
+        WagonExchange exchange = wagon.newExchange();
         exchange.setURL( "http://bad.host/test" );
 
         try

@@ -347,7 +347,7 @@ public abstract class NtlmWagonTestCase
         wagon.setAuthInfo( getAuthInfo() );
 
         String resourceURL = getTestRepositoryUrl() + "/ntlm/helper-res.txt";
-        WagonExchange exchange = wagon.new WagonExchange();
+        WagonExchange exchange = wagon.newExchange();
         exchange.setURL( resourceURL );
         exchange.setMethod( HttpMethods.PUT );
         exchange.setResponseStatus( 100 );
@@ -372,7 +372,7 @@ public abstract class NtlmWagonTestCase
         wagon.setAuthInfo( getAuthInfo() );
 
         String resourceURL = getTestRepositoryUrl() + "/ntlm/helper-res.txt";
-        WagonExchange exchange = wagon.new WagonExchange();
+        WagonExchange exchange = wagon.newExchange();
         exchange.setURL( resourceURL );
         exchange.setMethod( HttpMethods.GET );
         exchange.setResponseStatus( 100 );

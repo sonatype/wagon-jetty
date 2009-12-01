@@ -248,6 +248,36 @@ public class JettyClientHttpWagon
         }
     }
 
+    private void handleException( WagonExchange httpExchange )
+        throws TransferFailedException
+    {
+        Throwable exception = httpExchange.getException();
+
+        if ( exception != null )
+        {
+            int requestType;
+            if ( HttpMethods.PUT.equals( httpExchange.getMethod() ) )
+            {
+                requestType = TransferEvent.REQUEST_PUT;
+            }
+            else
+            {
+                requestType = TransferEvent.REQUEST_GET;
+            }
+
+            if ( exception instanceof Exception )
+            {
+                fireTransferError( _resource, (Exception) exception, requestType );
+            }
+            else
+            {
+                fireTransferError( _resource, (Exception) new IOException().initCause( exception ), requestType );
+            }
+
+            throw new TransferFailedException( "Transfer error: " + exception.getMessage(), exception );
+        }
+    }
+
     WagonExchange newExchange()
     {
         return new WagonExchange( _httpClient );
@@ -312,6 +342,8 @@ public class JettyClientHttpWagon
                 httpExchange.setMethod( HttpMethods.GET );
 
                 sendAndWait( httpExchange );
+
+                handleException( httpExchange );
 
                 int responseStatus = httpExchange.getResponseStatus();
                 if ( responseStatus == ServerResponse.SC_MOVED_PERMANENTLY
@@ -494,6 +526,8 @@ public class JettyClientHttpWagon
             setRequestContentSource( httpExchange, stream, source );
 
             sendAndWait( httpExchange );
+
+            handleException( httpExchange );
 
             int responseStatus = httpExchange.getResponseStatus();
 
@@ -781,6 +815,8 @@ public class JettyClientHttpWagon
 
         private final HttpClient _httpClient;
 
+        private Throwable _exception;
+
         public WagonExchange(HttpClient httpClient)
         {
             super( false );
@@ -807,6 +843,11 @@ public class JettyClientHttpWagon
         public boolean isDone( int status )
         {
             return super.isDone( status ) || !_httpClient.isRunning();
+        }
+
+        public Throwable getException()
+        {
+            return _exception;
         }
 
         public String getLocation()
@@ -875,7 +916,7 @@ public class JettyClientHttpWagon
         }
 
         @Override
-        public void onResponseHeader( final Buffer name, final Buffer value )
+        protected void onResponseHeader( final Buffer name, final Buffer value )
             throws IOException
         {
             super.onResponseHeader( name, value );
@@ -913,6 +954,30 @@ public class JettyClientHttpWagon
             {
                 fireGetStarted( _resource, _requestState._transferEvent.getLocalFile() );
             }
+        }
+
+        @Override
+        protected void onExpire()
+        {
+            super.onExpire();
+
+            this._exception = new IOException( "The server did not respond within the configured timeout." );
+        }
+
+        @Override
+        protected void onException( Throwable x )
+        {
+            super.onException( x );
+
+            this._exception = x;
+        }
+
+        @Override
+        protected void onConnectionFailed( Throwable x )
+        {
+            super.onConnectionFailed( x );
+
+            this._exception = x;
         }
 
     }

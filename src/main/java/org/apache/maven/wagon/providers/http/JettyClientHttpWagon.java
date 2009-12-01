@@ -973,7 +973,7 @@ public class JettyClientHttpWagon
         {
             synchronized ( _httpExchange )
             {
-                // WagonExchange.isDone() will notice the client has stopped, we just not to wake it up
+                // WagonExchange.isDone() will notice the client has stopped, we just need to wake it up
                 _httpExchange.notifyAll();
             }
         }

@@ -25,6 +25,7 @@ import org.apache.maven.wagon.OutputData;
 import org.apache.maven.wagon.ResourceDoesNotExistException;
 import org.apache.maven.wagon.StreamingWagon;
 import org.apache.maven.wagon.TransferFailedException;
+import org.apache.maven.wagon.WagonConstants;
 import org.apache.maven.wagon.authentication.AuthenticationException;
 import org.apache.maven.wagon.authentication.AuthenticationInfo;
 import org.apache.maven.wagon.authorization.AuthorizationException;
@@ -770,7 +771,7 @@ public class JettyClientHttpWagon
 
         private int _responseStatus;
 
-        private int _contentLength;
+        private int _contentLength = WagonConstants.UNKNOWN_LENGTH;
 
         private String _contentEncoding;
 

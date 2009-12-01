@@ -131,7 +131,7 @@ public class JettyClientHttpWagon
 
         try
         {
-            _httpClient = new HttpClient();
+            _httpClient = new FixedHttpClient();
 
             _httpClient.setConnectorType( HttpClient.CONNECTOR_SELECT_CHANNEL );
             _httpClient.setTimeout( super.getTimeout() );

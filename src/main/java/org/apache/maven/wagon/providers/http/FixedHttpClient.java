@@ -19,19 +19,35 @@ package org.apache.maven.wagon.providers.http;
  * under the License.
  */
 
+import org.apache.maven.wagon.providers.http.JettyClientHttpWagon.WagonExchange;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.LazyList;
 import org.eclipse.jetty.util.component.LifeCycle;
+import org.eclipse.jetty.util.thread.Timeout.Task;
 
 class FixedHttpClient
     extends HttpClient
 {
+
+    WagonExchange _httpExchange;
 
     @Override
     public void removeLifeCycleListener( Listener listener )
     {
         // see https://bugs.eclipse.org/bugs/show_bug.cgi?id=296569
         _listeners = (LifeCycle.Listener[]) LazyList.removeFromArray( _listeners, listener );
+    }
+
+    @Override
+    public void schedule( Task task )
+    {
+        super.schedule( task );
+
+        // hack/workaround for https://bugs.eclipse.org/bugs/show_bug.cgi?id=296650
+        if ( _httpExchange != null )
+        {
+            _httpExchange.setTimeoutTask( task );
+        }
     }
 
 }

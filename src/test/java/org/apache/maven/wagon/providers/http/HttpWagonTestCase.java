@@ -1079,6 +1079,9 @@ public abstract class HttpWagonTestCase
 
         StreamingWagon wagon = (StreamingWagon) getWagon();
 
+        // NOTE: 500 < 2000 < 5000, i.e the connection idles for only 500 ms and the overall transfer takes 5000 ms
+        wagon.setTimeout( 2000 );
+
         wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
 
         StringOutputStream out = new StringOutputStream();
@@ -1501,6 +1504,7 @@ public abstract class HttpWagonTestCase
                 }
 
                 out.write( buff );
+                out.flush();
             }
 
             ( (Request) request ).setHandled( true );

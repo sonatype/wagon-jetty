@@ -46,6 +46,7 @@ import org.eclipse.jetty.http.HttpMethods;
 import org.eclipse.jetty.io.Buffer;
 import org.eclipse.jetty.io.BufferUtil;
 import org.eclipse.jetty.util.component.LifeCycle;
+import org.eclipse.jetty.util.thread.Timeout.Task;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -104,7 +105,7 @@ public class JettyClientHttpWagon
     /** @plexus.configuration default="10" */
     private int maxRedirections = 10;
 
-    private HttpClient _httpClient;
+    private FixedHttpClient _httpClient;
 
     private HttpFields _httpHeaders;
 
@@ -239,11 +240,13 @@ public class JettyClientHttpWagon
         _httpClient.addLifeCycleListener( exchangeStopper );
         try
         {
+            _httpClient._httpExchange = httpExchange;
             _httpClient.send( httpExchange );
             httpExchange.waitForDone();
         }
         finally
         {
+            _httpClient._httpExchange = null;
             _httpClient.removeLifeCycleListener( exchangeStopper );
         }
     }
@@ -817,6 +820,8 @@ public class JettyClientHttpWagon
 
         private Throwable _exception;
 
+        private Task _timeoutTask;
+
         public WagonExchange(HttpClient httpClient)
         {
             super( false );
@@ -915,6 +920,11 @@ public class JettyClientHttpWagon
                             : getResponseContentBytes() );
         }
 
+        public void setTimeoutTask( Task timeoutTask )
+        {
+            _timeoutTask = timeoutTask;
+        }
+
         @Override
         protected void onResponseHeader( final Buffer name, final Buffer value )
             throws IOException
@@ -937,6 +947,19 @@ public class JettyClientHttpWagon
                 case HttpHeaders.LOCATION_ORDINAL:
                     _location = value.toString();
                     break;
+            }
+        }
+
+        @Override
+        protected void onResponseContent( Buffer content )
+            throws IOException
+        {
+            super.onResponseContent( content );
+
+            // hack/workaround for https://bugs.eclipse.org/bugs/show_bug.cgi?id=296650
+            if ( _timeoutTask != null )
+            {
+                _timeoutTask.reschedule();
             }
         }
 

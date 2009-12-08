@@ -920,6 +920,19 @@ public class JettyClientHttpWagon
                             : getResponseContentBytes() );
         }
 
+        @Override
+        public Buffer getRequestContentChunk()
+            throws IOException
+        {
+            // hack/workaround for https://bugs.eclipse.org/bugs/show_bug.cgi?id=296650
+            if ( _timeoutTask != null )
+            {
+                _timeoutTask.reschedule();
+            }
+
+            return super.getRequestContentChunk();
+        }
+
         public void setTimeoutTask( Task timeoutTask )
         {
             _timeoutTask = timeoutTask;

@@ -35,7 +35,27 @@ under the License.
   </licenses>
   <properties>
     <jetty.version>7.0.0.v20091005</jetty.version>
+    <distMgmtReleaseId></distMgmtReleaseId>
+    <distMgmtReleaseName></distMgmtReleaseName>
+    <distMgmtReleaseUrl></distMgmtReleaseUrl>
+    <distMgmtSnapshotsId></distMgmtSnapshotsId>
+    <distMgmtSnapshotsName></distMgmtSnapshotsName>
+    <distMgmtSnapshotsUrl></distMgmtSnapshotsUrl>
   </properties>
+  
+  <distributionManagement>
+    <repository>
+      <id>${distMgmtReleaseId}</id>
+      <name>${distMgmtReleaseName}</name>
+      <url>${distMgmtReleaseUrl}</url>
+    </repository>
+    <snapshotRepository>
+      <id>${distMgmtSnapshotsId}</id>
+      <name>${distMgmtSnapshotsName}</name>
+      <url>${distMgmtSnapshotsUrl}</url>
+    </snapshotRepository>
+  </distributionManagement>  
+  
   <build>
     <plugins>
       <plugin>

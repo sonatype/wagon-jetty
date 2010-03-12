@@ -19,6 +19,8 @@ package org.apache.maven.wagon.providers.http;
  * under the License.
  */
 
+import java.lang.reflect.Field;
+
 import org.apache.maven.wagon.providers.http.JettyClientHttpWagon.WagonExchange;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.LazyList;
@@ -47,6 +49,40 @@ class FixedHttpClient
         if ( _httpExchange != null )
         {
             _httpExchange.setTimeoutTask( task );
+        }
+    }
+
+    public void setKeyStoreType( String value )
+    {
+        setField( "_keyStoreType", value );
+    }
+
+    public void setKeyManagerAlgorithm( String value )
+    {
+        setField( "_keyManagerAlgorithm", ( value != null ) ? value : "SunX509" );
+    }
+
+    public void setTrustStoreType( String value )
+    {
+        setField( "_trustStoreType", value );
+    }
+
+    public void setTrustManagerAlgorithm( String value )
+    {
+        setField( "_trustManagerAlgorithm", ( value != null ) ? value : "SunX509" );
+    }
+
+    private void setField( String name, String value )
+    {
+        try
+        {
+            Field field = HttpClient.class.getDeclaredField( name );
+            field.setAccessible( true );
+            field.set( this, value );
+        }
+        catch ( Exception e )
+        {
+            throw new IllegalStateException( e );
         }
     }
 

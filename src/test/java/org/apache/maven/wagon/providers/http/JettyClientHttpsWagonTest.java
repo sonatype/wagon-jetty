@@ -20,7 +20,12 @@
 package org.apache.maven.wagon.providers.http;
 
 import org.apache.maven.wagon.StreamingWagon;
+import org.apache.maven.wagon.repository.Repository;
+import org.mortbay.jetty.Connector;
+import org.mortbay.jetty.Handler;
+import org.mortbay.jetty.servlet.Context;
 
+import java.io.ByteArrayOutputStream;
 import java.util.Properties;
 
 public class JettyClientHttpsWagonTest
@@ -37,4 +42,54 @@ public class JettyClientHttpsWagonTest
     {
         ( (JettyClientHttpWagon) wagon ).setHttpHeaders( properties );
     }
+
+    public void testClientAuthenticationWithCertificates()
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        handlers = new Handler[] { new StatusHandler( 200 ) };
+        contexts = new Context[] {};
+        connectors = new Connector[] { newHttpsConnector( true ) };
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        Properties props = System.getProperties();
+
+        try
+        {
+            System.setProperty( "javax.net.ssl.keyStore", getTestFile( "src/test/resources/ssl/client-store" ).getAbsolutePath() );
+            System.setProperty( "javax.net.ssl.keyStorePassword", "client-pwd" );
+            System.setProperty( "javax.net.ssl.keyStoreType", "jks" );
+            System.setProperty( "javax.net.ssl.trustStore", getTestFile( "src/test/resources/ssl/keystore" ).getAbsolutePath() );
+            System.setProperty( "javax.net.ssl.trustStorePassword", "storepwd" );
+            System.setProperty( "javax.net.ssl.trustStoreType", "jks" );
+
+            StreamingWagon wagon = (StreamingWagon) getWagon();
+
+            wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+            try
+            {
+                wagon.getToStream( "/base.txt", new ByteArrayOutputStream() );
+            }
+            finally
+            {
+                wagon.disconnect();
+
+                tearDownWagonTestingFixtures();
+
+                stopTestServer();
+            }
+        }
+        finally
+        {
+            System.setProperties( props );
+        }
+    }
+
 }

@@ -133,12 +133,19 @@ public abstract class HttpWagonTestCase
 
     protected Connector newHttpsConnector()
     {
+        return newHttpsConnector(false);
+    }
+
+    protected Connector newHttpsConnector(boolean needClientAuth)
+    {
         SslSocketConnector connector = new SslSocketConnector();
-        String keystore = getTestFile( "src/test/resources/ssl/keystore" ).getAbsolutePath();
         connector.setPort( 0 );
-        connector.setKeystore( keystore );
+        connector.setKeystore( getTestFile( "src/test/resources/ssl/keystore" ).getAbsolutePath() );
         connector.setPassword( "storepwd" );
         connector.setKeyPassword( "keypwd" );
+        connector.setTruststore( getTestFile( "src/test/resources/ssl/client-store" ).getAbsolutePath() );
+        connector.setTrustPassword( "client-pwd" );
+        connector.setNeedClientAuth( needClientAuth );
         return connector;
     }
 
@@ -1314,6 +1321,16 @@ public abstract class HttpWagonTestCase
         extends AbstractHandler
     {
         private int status;
+
+        public StatusHandler()
+        {
+            this( 0 );
+        }
+
+        public StatusHandler( int status )
+        {
+            this.status = status;
+        }
 
         public void setStatusToReturn( final int status )
         {

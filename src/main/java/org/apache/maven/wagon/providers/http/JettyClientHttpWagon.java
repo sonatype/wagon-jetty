@@ -58,6 +58,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.security.KeyStore;
+import java.security.Security;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -143,6 +145,18 @@ public class JettyClientHttpWagon
                 _httpClient.setMaxConnectionsPerAddress( maxConnections );
             }
 
+            _httpClient.setTrustStoreLocation( System.getProperty( "javax.net.ssl.trustStore" ) );
+            _httpClient.setTrustStorePassword( System.getProperty( "javax.net.ssl.trustStorePassword" ) );
+            _httpClient.setTrustStoreType( System.getProperty( "javax.net.ssl.trustStoreType",
+                                                               KeyStore.getDefaultType() ) );
+            _httpClient.setTrustManagerAlgorithm( Security.getProperty( "ssl.TrustManagerFactory.algorithm" ) );
+
+            _httpClient.setKeyStoreLocation( System.getProperty( "javax.net.ssl.keyStore" ) );
+            _httpClient.setKeyStorePassword( System.getProperty( "javax.net.ssl.keyStorePassword" ) );
+            _httpClient.setKeyStoreType( System.getProperty( "javax.net.ssl.keyStoreType", KeyStore.getDefaultType() ) );
+            _httpClient.setKeyManagerAlgorithm( Security.getProperty( "ssl.KeyManagerFactory.algorithm" ) );
+            _httpClient.setKeyManagerPassword( System.getProperty( "javax.net.ssl.keyStorePassword" ) );
+
             _httpClient.registerListener( "org.apache.maven.wagon.providers.http.WagonListener" );
             _httpClient.registerListener( "org.eclipse.jetty.client.webdav.WebdavListener" );
 
@@ -155,7 +169,7 @@ public class JettyClientHttpWagon
         catch ( Exception ex )
         {
             _httpClient = null;
-            throw new ConnectionException( ex.getLocalizedMessage() );
+            throw new ConnectionException( ex.getLocalizedMessage(), ex );
         }
     }
 
@@ -916,8 +930,8 @@ public class JettyClientHttpWagon
         public InputStream getResponseContentSource()
             throws UnsupportedEncodingException
         {
-            return new ByteArrayInputStream( _responseContentBytes != null ? _responseContentBytes
-                            : getResponseContentBytes() );
+            byte[] content = _responseContentBytes != null ? _responseContentBytes : getResponseContentBytes();
+            return new ByteArrayInputStream( content != null ? content : new byte[0] );
         }
 
         @Override

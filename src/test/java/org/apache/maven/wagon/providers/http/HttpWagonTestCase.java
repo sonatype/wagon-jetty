@@ -153,12 +153,16 @@ public abstract class HttpWagonTestCase
     {
         if ( handlers == null )
         {
+            srv.addHandler( new RequestValidatorHandler() );
             PutHandler putHandler = new PutHandler( getRepositoryPath() );
             srv.addHandler( putHandler );
         }
         else
         {
-            srv.setHandlers( handlers );
+            Handler[] h = new Handler[handlers.length + 1];
+            System.arraycopy( handlers, 0, h, 1, handlers.length );
+            h[0] = new RequestValidatorHandler();
+            srv.setHandlers( h );
             handlers = null;
         }
     }
@@ -190,8 +194,7 @@ public abstract class HttpWagonTestCase
     {
         resource = "test-resource";
 
-        testRepository = new Repository();
-        testRepository.setUrl( getTestRepositoryUrl() );
+        testRepository = new Repository( "test", getTestRepositoryUrl() );
         testRepository.setPermissions( getPermissions() );
 
         localRepositoryPath = getRepositoryPath();
@@ -507,6 +510,45 @@ public abstract class HttpWagonTestCase
         out.write( content.getBytes() );
         out.close();
         return content;
+    }
+
+    public void testGetFileThatIsBiggerThanMaxHeap()
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        long bytes = (long) ( Runtime.getRuntime().maxMemory() * 1.1 );
+
+        handlers = new Handler[] { new HugeDataHandler( bytes ) };
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+
+        wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+        File hugeFile = File.createTempFile( "wagon-test-" + getName(), ".tmp" );
+        hugeFile.deleteOnExit();
+
+        try
+        {
+            wagon.get( "huge.txt", hugeFile );
+        }
+        finally
+        {
+            wagon.disconnect();
+
+            tearDownWagonTestingFixtures();
+
+            stopTestServer();
+        }
+
+        assertTrue( hugeFile.isFile() );
+        assertEquals( bytes, hugeFile.length() );
     }
 
     public void testProxiedRequest()
@@ -995,6 +1037,50 @@ public abstract class HttpWagonTestCase
         }
     }
 
+    public void testPutFileThatIsBiggerThanMaxHeap()
+        throws Exception
+    {
+        alert( "\n\nRunning test: " + getName() );
+
+        long bytes = (long) ( Runtime.getRuntime().maxMemory() * 1.1 );
+
+        handlers = new Handler[] { new PutHandler( getRepositoryPath() ) };
+
+        setupTestServer();
+
+        setupRepositories();
+
+        setupWagonTestingFixtures();
+
+        StreamingWagon wagon = (StreamingWagon) getWagon();
+
+        wagon.connect( new Repository( "id", getTestRepositoryUrl() ) );
+
+        File hugeFile = File.createTempFile( "wagon-test-" + getName(), ".tmp" );
+        hugeFile.deleteOnExit();
+        FileOutputStream fos = new FileOutputStream( hugeFile );
+        IOUtil.copy( new HugeInputStream( bytes ), fos );
+        fos.close();
+        assertEquals( bytes, hugeFile.length() );
+
+        try
+        {
+            wagon.put( hugeFile, "huge.txt" );
+        }
+        finally
+        {
+            wagon.disconnect();
+
+            tearDownWagonTestingFixtures();
+
+            stopTestServer();
+        }
+
+        File remoteFile = new File( getRepositoryPath(), "huge.txt" );
+        assertTrue( remoteFile.isFile() );
+        assertEquals( hugeFile.length(), remoteFile.length() );
+    }
+
     public void testGetUnknownIP()
         throws Exception
     {
@@ -1153,33 +1239,39 @@ public abstract class HttpWagonTestCase
     public void testGetRedirectOncePermanent()
         throws Exception
     {
-        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_PERMANENTLY, "/moved.txt", "/base.txt", 1 );
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_PERMANENTLY, "/moved.txt", "/base.txt", 1, false );
     }
 
     public void testGetRedirectOnceTemporary()
         throws Exception
     {
-        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_TEMPORARILY, "/moved.txt", "/base.txt", 1 );
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_TEMPORARILY, "/moved.txt", "/base.txt", 1, false );
     }
 
     public void testGetRedirectSixPermanent()
         throws Exception
     {
-        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_PERMANENTLY, "/moved.txt", "/base.txt", 6 );
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_PERMANENTLY, "/moved.txt", "/base.txt", 6, false );
     }
 
     public void testGetRedirectSixTemporary()
         throws Exception
     {
-        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_TEMPORARILY, "/moved.txt", "/base.txt", 6 );
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_TEMPORARILY, "/moved.txt", "/base.txt", 6, false );
     }
 
-    private void runTestRedirectSuccess( int code, String currUrl, String origUrl, int maxRedirects )
+    public void testGetRedirectRelativeLocation()
+        throws Exception
+    {
+        runTestRedirectSuccess( HttpServletResponse.SC_MOVED_PERMANENTLY, "/moved.txt", "/base.txt", 1, true );
+    }
+
+    private void runTestRedirectSuccess( int code, String currUrl, String origUrl, int maxRedirects, boolean relativeLocation )
         throws Exception
     {
         alert( "\n\nRunning test: " + getName() );
 
-        Handler handler = new RedirectHandler( code, currUrl, origUrl, maxRedirects );
+        Handler handler = new RedirectHandler( code, currUrl, origUrl, maxRedirects, relativeLocation );
         handlers = new Handler[] { handler };
         contexts = new Context[] {};
 
@@ -1227,7 +1319,7 @@ public abstract class HttpWagonTestCase
     {
         alert( "\n\nRunning test: " + getName() );
 
-        Handler handler = new RedirectHandler( code, currUrl, origUrl, maxRedirects );
+        Handler handler = new RedirectHandler( code, currUrl, origUrl, maxRedirects, false );
         handlers = new Handler[] { handler };
         contexts = new Context[] {};
 
@@ -1541,12 +1633,15 @@ public abstract class HttpWagonTestCase
 
         private final String currUrl;
 
-        public RedirectHandler( final int code, final String currUrl, final String origUrl, final int maxRedirects )
+        private final boolean relativeLocation;
+
+        public RedirectHandler( final int code, final String currUrl, final String origUrl, final int maxRedirects, boolean relativeLocation )
         {
             this.code = code;
             this.currUrl = currUrl;
             this.origUrl = origUrl;
             this.maxRedirects = maxRedirects;
+            this.relativeLocation = relativeLocation;
         }
 
         public void handle( String target, HttpServletRequest request, HttpServletResponse response, int dispatch )
@@ -1561,16 +1656,24 @@ public abstract class HttpWagonTestCase
             {
                 redirectCount++;
 
+                String location;
                 if ( maxRedirects < 0 || redirectCount < maxRedirects )
                 {
-                    response.setStatus( code );
-                    response.setHeader( "Location", currUrl );
+                    location = currUrl;
                 }
                 else
                 {
-                    response.setStatus( code );
-                    response.setHeader( "Location", origUrl );
+                    location = origUrl;
                 }
+
+                if ( !relativeLocation && location.startsWith( "/" ) )
+                {
+                    String base = request.getScheme() + "://" + request.getServerName() + ":" + request.getServerPort();
+                    location = base + location;
+                }
+
+                response.setStatus( code );
+                response.setHeader( "Location", location );
                 ( (Request) request ).setHandled( true );
             }
             else if ( request.getRequestURI().equals( origUrl ) )
@@ -1592,6 +1695,59 @@ public abstract class HttpWagonTestCase
                 ( (Request) request ).setHandled( true );
             }
         }
+    }
+
+    static class HugeDataHandler
+        extends AbstractHandler
+    {
+
+        private long size;
+
+        public HugeDataHandler( long size )
+        {
+            this.size = size;
+        }
+
+        public void handle( String target, HttpServletRequest request, HttpServletResponse response, int dispatch )
+            throws IOException
+        {
+            if ( "GET".equals( request.getMethod() ) )
+            {
+                OutputStream os = response.getOutputStream();
+
+                IOUtil.copy( new HugeInputStream( size ), os );
+                os.close();
+
+                response.setStatus( 200 );
+                ( (Request) request ).setHandled( true );
+            }
+        }
+
+    }
+
+    static class RequestValidatorHandler
+        extends AbstractHandler
+    {
+
+        public void handle( String target, HttpServletRequest request, HttpServletResponse response, int dispatch )
+        {
+            if ( "GET".equals( request.getMethod() ) || "HEAD".equals( request.getMethod() ) )
+            {
+                if ( request.getHeader( "Content-Length" ) != null )
+                {
+                    /*
+                     * While the HTTP spec does not clearly prohibit a request body for a GET/HEAD, the feedback we got
+                     * on MNGECLIPSE-1975 indicates that at least some (proxy) servers out there choke if a body is
+                     * sent.
+                     */
+                    /* https://bugs.eclipse.org/bugs/show_bug.cgi?id=306840
+                    response.setStatus( HttpServletResponse.SC_BAD_REQUEST );
+                    ( (Request) request ).setHandled( true );
+                    //*/
+                }
+            }
+        }
+
     }
 
 }

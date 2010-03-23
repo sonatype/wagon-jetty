@@ -842,6 +842,7 @@ public class JettyClientHttpWagon
 
             addRequestHeaders( _requestState._requestHeaders );
             addRequestHeaders( _httpHeaders );
+            addRequestHeader( HttpHeaders.USER_AGENT, "Apache-Maven" );
 
             _httpClient = httpClient;
         }
